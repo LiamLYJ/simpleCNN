@@ -20,10 +20,21 @@ using namespace std;
 using namespace npy;
 
 template<typename T>
+void load_npy(string fn, vector <T> & data, vector<unsigned long> & shape)
+{
+    npy::LoadArrayFromNumpy(fn, shape, data);
+
+    cout << "layer:" << fn << endl;
+    cout << "shape: ";
+    for (size_t i = 0; i < shape.size(); i++)
+        cout << shape[i] << ", ";
+    cout << endl;
+}
+
+template<typename T>
 void load_npy(string fn, vector <T> & data)
 {
     vector<unsigned long> shape;
-
     npy::LoadArrayFromNumpy(fn, shape, data);
 
     cout << "layer:" << fn << endl;
@@ -141,7 +152,8 @@ int main()
     vector<float> input_data;
 
     string input_fn = "./data/input.npy";
-    load_npy(input_fn, char_data);
+    vector<unsigned long> shape;
+    load_npy(input_fn, char_data, shape);
     input_data.assign(char_data.begin(), char_data.end());
     tensor_t<float> image_tensor(224, 224, 3);
     // image_tensor = to_tensor(input_data)
@@ -156,5 +168,6 @@ int main()
     cout << out.size.y << endl;
     cout << out.size.x << endl;
 
+    cout << "shape of shape:" << shape[0] << shape[1] << endl;
     return 0;
 }
