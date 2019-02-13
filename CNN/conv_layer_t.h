@@ -95,8 +95,8 @@ struct conv_layer_t
 
 	tensor_t<float> conv_pad(tensor_t<float> in)
 	{
-		uint8_t x = in.size.x + padding;
-		uint8_t y = in.size.y + padding;
+		uint8_t x = in.size.x + 2 * padding;
+		uint8_t y = in.size.y + 2 * padding;
 		uint8_t z = in.size.z;
 
 		tensor_t<float> padded(x, y, z);
@@ -111,7 +111,7 @@ struct conv_layer_t
 		int y = this->filters[0].size.y;
 		int x = this->filters[0].size.x;
 
-        std::vector<tensor_t<float>>::iterator filter_p = this->filters.begin();
+    std::vector<tensor_t<float>>::iterator filter_p = this->filters.begin();
 		for (int v = 0; v < c; v++)
 		{
 			for (int i = 0; i < x; i++)

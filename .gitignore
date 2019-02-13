@@ -1,3 +1,4 @@
 data/
 .DS*
 train*
+build/

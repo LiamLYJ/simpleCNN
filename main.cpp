@@ -34,14 +34,23 @@ void load_npy(string fn, vector <T> & data)
 }
 
 
+void forward( vector<layer_t*>& layers, tensor_t<float>& data )
+{
+    for ( int i = 0; i < layers.size(); i++ )
+    {
+        if ( i == 0 )
+            activate( layers[i], data );
+        else
+            activate( layers[i], layers[i - 1]->out );
+    }
+}
+
 int main()
 {
-    vector<float> input_data;
     vector<float> float_data;
-    vector<unsigned char> char_data;
 
     vector<layer_t *> layers;
-    tdsize data_input = {224, 224, 3}; 
+    tdsize data_input = {224, 224, 3};
     conv_layer_t *layer_0 = new conv_layer_t(1, 3, 16, 1, data_input); // 224 * 224 * 3 -> 224 * 224 * 16
     relu_layer_t *layer_0_relu = new relu_layer_t(layer_0->out.size);
     pool_layer_t *layer_1 = new pool_layer_t(2, 2, layer_0_relu->out.size); // 224 * 224 * 16 -> 112 * 112 * 16
@@ -51,7 +60,7 @@ int main()
     string layer_bias_fn = "./data/bias_00.npy";
     load_npy(layer_bias_fn, float_data);
     layer_0->load_bias(float_data);
-    
+
     conv_layer_t *layer_2 = new conv_layer_t(1, 3, 32, 1,layer_1->out.size); // 112 * 112 * 16 -> 112 * 112 * 32
     relu_layer_t *layer_2_relu = new relu_layer_t(layer_2->out.size);
     pool_layer_t *layer_3 = new pool_layer_t(2, 2, layer_2_relu->out.size); // 112 * 112 * 32 -> 64 * 64 * 32
@@ -72,7 +81,7 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_4->load_bias(float_data);
 
-    conv_layer_t *layer_6 = new conv_layer_t(1, 3, 128,1, layer_5->out.size); // 32 * 32 * 64 -> 32 * 32 * 128 
+    conv_layer_t *layer_6 = new conv_layer_t(1, 3, 128,1, layer_5->out.size); // 32 * 32 * 64 -> 32 * 32 * 128
     relu_layer_t *layer_6_relu = new relu_layer_t(layer_6->out.size);
     pool_layer_t *layer_7 = new pool_layer_t(2, 2, layer_6_relu->out.size); // 32 * 32 * 128 -> 16 * 16 * 128
     layer_weights_fn = "./data/weight_03.npy";
@@ -82,7 +91,7 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_6->load_bias(float_data);
 
-    conv_layer_t *layer_8 = new conv_layer_t(1, 3, 128,1, layer_7->out.size); // 16 * 16 * 128 -> 16 * 16 * 128 
+    conv_layer_t *layer_8 = new conv_layer_t(1, 3, 128,1, layer_7->out.size); // 16 * 16 * 128 -> 16 * 16 * 128
     relu_layer_t *layer_8_relu = new relu_layer_t(layer_8->out.size);
     pool_layer_t *layer_9 = new pool_layer_t(2, 2, layer_8_relu->out.size); // 16 * 16 * 128 -> 8 * 8 * 128
     layer_weights_fn = "./data/weight_04.npy";
@@ -99,7 +108,7 @@ int main()
     layer_10->load_weights(float_data);
     layer_bias_fn = "./data/bias_05.npy";
     load_npy(layer_bias_fn, float_data);
-    layer_10->load_bias(float_data);   
+    layer_10->load_bias(float_data);
 
     conv_layer_t *layer_11 = new conv_layer_t(1, 3, 128,1, layer_10->out.size); // 8 * 8 * 128 -> 8 * 8 * 24
     layer_weights_fn = "./data/weight_06.npy";
@@ -128,10 +137,24 @@ int main()
     layers.push_back((layer_t *)layer_10_relu);
     layers.push_back((layer_t *)layer_11);
 
+    vector<unsigned char> char_data;
+    vector<float> input_data;
+
     string input_fn = "./data/input.npy";
     load_npy(input_fn, char_data);
     input_data.assign(char_data.begin(), char_data.end());
+    tensor_t<float> image_tensor(224, 224, 3);
+    // image_tensor = to_tensor(input_data)
 
+    cout << image_tensor.size.z << endl;
+    cout << image_tensor.size.y << endl;
+    cout << image_tensor.size.x << endl;
+
+    forward( layers, image_tensor);
+    tensor_t<float>& out = layers.back()->out;
+    cout << out.size.z << endl;
+    cout << out.size.y << endl;
+    cout << out.size.x << endl;
 
     return 0;
 }

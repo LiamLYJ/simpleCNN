@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import re
 import os
-from scipy.misc import imread
+from scipy.misc import imread, imresize
 
 
 def shrink_weight_bias(conv_weight_key,model, bn_eps = 1e-6):
@@ -64,4 +64,5 @@ for key in model_keylist:
 np.save(fn, my_dict)
 
 test_jpg = imread('img.jpg')
+test_jpg = imresize(test_jpg, (224,224)) 
 np.save(os.path.join(save_dir, 'input.npy'), test_jpg)
