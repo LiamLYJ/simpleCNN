@@ -156,7 +156,7 @@ int main()
     load_npy(input_fn, char_data, shape);
     input_data.assign(char_data.begin(), char_data.end());
     tensor_t<float> image_tensor(224, 224, 3);
-    // image_tensor = to_tensor(input_data)
+    image_tensor = to_tensor(input_data, shape);
 
     cout << image_tensor.size.z << endl;
     cout << image_tensor.size.y << endl;

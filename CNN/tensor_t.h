@@ -122,18 +122,17 @@ static void print_tensor( tensor_t<float>& data )
 	}
 }
 
-static tensor_t<float> to_tensor( std::vector<std::vector<std::vector<float>>> data )
+static tensor_t<float> to_tensor( std::vector<float> data, std::vector<unsigned long> shape)
 {
-	int z = data.size();
-	int y = data[0].size();
-	int x = data[0][0].size();
-
+	int x = shape[0];
+	int y = shape[1];
+	int z = shape[2];
 
 	tensor_t<float> t( x, y, z );
 
 	for ( int i = 0; i < x; i++ )
 		for ( int j = 0; j < y; j++ )
 			for ( int k = 0; k < z; k++ )
-				t( i, j, k ) = data[k][j][i];
+				t( i, j, k ) = data[i * x + j * y + k*z];
 	return t;
 }
