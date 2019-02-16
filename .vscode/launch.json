@@ -25,6 +25,20 @@
             "MIMode": "lldb",
             "miDebuggerPath": "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-mi",
             "preLaunchTask": "pre_build"
+        },
+        {
+            "name": "(lldb)play_ground",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/play_ground",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "miDebuggerPath": "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-mi",
+            "preLaunchTask": "pre_build"
         }
     ]
 }

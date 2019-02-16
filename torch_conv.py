@@ -27,3 +27,4 @@ conv_input = conv_input.unsqueeze(0).permute(0,3,1,2)
 output = F.conv2d(input = conv_input, weight = conv_weight, bias = conv_bias, stride = 1, padding = 1) 
 print (output.shape)
 
+np.save('result_py.npy', output)

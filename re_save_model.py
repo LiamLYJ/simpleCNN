@@ -64,5 +64,5 @@ for key in model_keylist:
 np.save(fn, my_dict)
 
 test_jpg = imread('img.jpg')
-test_jpg = imresize(test_jpg, (224,224)) 
+test_jpg = imresize(test_jpg, (224,224)).astype(np.float32)
 np.save(os.path.join(save_dir, 'input.npy'), test_jpg)

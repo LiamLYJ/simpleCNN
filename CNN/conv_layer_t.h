@@ -99,9 +99,16 @@ struct conv_layer_t
 		uint8_t y = in.size.y + 2 * padding;
 		uint8_t z = in.size.z;
 
-		tensor_t<float> padded(x, y, z);
-		padded.copy_from_padding(in, padding);
-		return padded;
+		if (padding > 0)
+		{
+			tensor_t<float> padded(x, y, z);
+			padded.copy_from_padding(in, padding);
+			return padded;
+		}
+		else 
+		{
+			return in;
+		}
 	}
 
     void load_weights(std::vector<float> data)

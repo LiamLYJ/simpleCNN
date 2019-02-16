@@ -1,29 +1,16 @@
+
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
 #include <iostream>
-#include <string>
-#include <vector>
-#include "./npy.h"
+#include <fstream>
+#include <algorithm>
+#include "byteswap.h"
+#include "CNN/cnn.h"
+#include "npy.h"
 
 using namespace std;
-
-template<typename T>
-int test_load(string fn, vector<T> data)
-{
-    vector<unsigned long> shape;
-
-    npy::LoadArrayFromNumpy(fn, shape, data);
-
-    cout << "shape: ";
-    for (size_t i = 0; i < shape.size(); i++)
-        cout << shape[i] << ", ";
-    cout << endl;
-//    cout << "data: ";
-//    for (size_t i = 0; i < data.size(); i++)
-//        cout << data[i] << ", ";
-//    cout << endl;
-
-    return 0;
-}
-
+using namespace npy;
 
 int test_save(void)
 {
@@ -39,18 +26,35 @@ int test_save(void)
 
 int main(int argc, char **argv)
 {
-    string fn = "./data/weight_01.npy";
-    vector<float> data;
-//    string fn1 = "./data/input.npy";
-//    vector<uint8_t> data1;
-    test_load(fn,data);
-//    test_load(fn1,data1);
+    string fn_weight = "./data/weight_00.npy";
+    string fn_bias = "./data/bias_00.npy";
+    string fn_input = "./data/input.npy";
+    vector<float> weight_data;
+    vector<float> bias_data;
+    vector<float> input_data;
+    vector<unsigned long> weight_shape;
+    vector<unsigned long> bias_shape;
+    vector<unsigned long> input_shape;
 
-//    vector <int> a(10,1);
-//    vector <int> b(10,2);
-//    vector <int> c;
-//    c.assign(a.begin(), a.end());
-    
+    LoadArrayFromNumpy(fn_weight, weight_shape, weight_data);
+    LoadArrayFromNumpy(fn_bias, bias_shape, bias_data);
+    LoadArrayFromNumpy(fn_input, input_shape, input_data);
+
+    tensor_t<float> image_tensor(224, 224, 3);
+    to_tensor(input_data, image_tensor);
+
+    tdsize shape = {224,224,3};
+    conv_layer_t *layer = new conv_layer_t(1, 3, 16, 1, shape);
+    layer->load_weights(weight_data);
+    layer->load_bias(bias_data);
+
+    layer->activate(image_tensor);
+    tensor_t<float> out_tensor = layer->out;
+    vector<float> out_data(224*224*16,0);
+    const long unsigned leshape[] = {224, 224, 16};
+    from_tensor(out_tensor, out_data);
+    SaveArrayAsNumpy("./results_c.npy", false, 3, leshape, out_data);
+   
     return 0;
 }
 

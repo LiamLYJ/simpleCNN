@@ -82,9 +82,9 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_2->load_bias(float_data);
 
-    conv_layer_t *layer_4 = new conv_layer_t(1, 3, 64, 1,layer_3->out.size); // 64 * 64 * 32 -> 64 * 64 * 64
+    conv_layer_t *layer_4 = new conv_layer_t(1, 3, 64, 1,layer_3->out.size); // 56 * 56 * 32 -> 56 * 56 * 64
     relu_layer_t *layer_4_relu = new relu_layer_t(layer_4->out.size);
-    pool_layer_t *layer_5 = new pool_layer_t(2, 2, layer_4_relu->out.size); // 64 * 64 * 64 -> 32 * 32 * 64
+    pool_layer_t *layer_5 = new pool_layer_t(2, 2, layer_4_relu->out.size); // 56 * 56 * 64 -> 28 * 28 * 64
     layer_weights_fn = "./data/weight_02.npy";
     load_npy(layer_weights_fn, float_data);
     layer_4->load_weights(float_data);
@@ -92,9 +92,9 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_4->load_bias(float_data);
 
-    conv_layer_t *layer_6 = new conv_layer_t(1, 3, 128,1, layer_5->out.size); // 32 * 32 * 64 -> 32 * 32 * 128
+    conv_layer_t *layer_6 = new conv_layer_t(1, 3, 128,1, layer_5->out.size); // 28 * 28 * 64 -> 28 * 28 * 128
     relu_layer_t *layer_6_relu = new relu_layer_t(layer_6->out.size);
-    pool_layer_t *layer_7 = new pool_layer_t(2, 2, layer_6_relu->out.size); // 32 * 32 * 128 -> 16 * 16 * 128
+    pool_layer_t *layer_7 = new pool_layer_t(2, 2, layer_6_relu->out.size); // 28 * 28* 128 -> 14 * 14 * 128
     layer_weights_fn = "./data/weight_03.npy";
     load_npy(layer_weights_fn, float_data);
     layer_6->load_weights(float_data);
@@ -102,9 +102,9 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_6->load_bias(float_data);
 
-    conv_layer_t *layer_8 = new conv_layer_t(1, 3, 128,1, layer_7->out.size); // 16 * 16 * 128 -> 16 * 16 * 128
+    conv_layer_t *layer_8 = new conv_layer_t(1, 3, 128,1, layer_7->out.size); // 14 * 14 * 128 -> 14 * 14 * 128
     relu_layer_t *layer_8_relu = new relu_layer_t(layer_8->out.size);
-    pool_layer_t *layer_9 = new pool_layer_t(2, 2, layer_8_relu->out.size); // 16 * 16 * 128 -> 8 * 8 * 128
+    pool_layer_t *layer_9 = new pool_layer_t(2, 2, layer_8_relu->out.size); // 14 * 14 * 128 -> 7 * 7 * 128
     layer_weights_fn = "./data/weight_04.npy";
     load_npy(layer_weights_fn, float_data);
     layer_8->load_weights(float_data);
@@ -112,7 +112,7 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_8->load_bias(float_data);
 
-    conv_layer_t *layer_10 = new conv_layer_t(1, 3, 128,1, layer_9->out.size); // 8 * 8 * 128 -> 8 * 8 * 256
+    conv_layer_t *layer_10 = new conv_layer_t(1, 3, 256,1, layer_9->out.size); // 7 * 7 * 128 -> 7 * 7 * 256
     relu_layer_t *layer_10_relu = new relu_layer_t(layer_10->out.size);
     layer_weights_fn = "./data/weight_05.npy";
     load_npy(layer_weights_fn, float_data);
@@ -121,7 +121,7 @@ int main()
     load_npy(layer_bias_fn, float_data);
     layer_10->load_bias(float_data);
 
-    conv_layer_t *layer_11 = new conv_layer_t(1, 3, 128,1, layer_10->out.size); // 8 * 8 * 128 -> 8 * 8 * 24
+    conv_layer_t *layer_11 = new conv_layer_t(1, 1, 24, 0, layer_10_relu->out.size); // 7 * 7 * 256 -> 7 * 7 * 24
     layer_weights_fn = "./data/weight_06.npy";
     load_npy(layer_weights_fn, float_data);
     layer_11->load_weights(float_data);
@@ -148,15 +148,10 @@ int main()
     layers.push_back((layer_t *)layer_10_relu);
     layers.push_back((layer_t *)layer_11);
 
-    vector<unsigned char> char_data;
-    vector<float> input_data;
-
     string input_fn = "./data/input.npy";
-    vector<unsigned long> shape;
-    load_npy(input_fn, char_data, shape);
-    input_data.assign(char_data.begin(), char_data.end());
+    load_npy(input_fn, float_data);
     tensor_t<float> image_tensor(224, 224, 3);
-    image_tensor = to_tensor(input_data, shape);
+    to_tensor(float_data, image_tensor);
 
     cout << image_tensor.size.z << endl;
     cout << image_tensor.size.y << endl;
@@ -168,6 +163,15 @@ int main()
     cout << out.size.y << endl;
     cout << out.size.x << endl;
 
-    cout << "shape of shape:" << shape[0] << shape[1] << endl;
+    // tensor_t<float> out(1,1,1); 
+    // for (layer_t* out_layer: layers)
+    // {
+    //    cout << "......"<< endl;
+    //    out = out_layer->out;
+    //    cout << out.size.z << endl;
+    //    cout << out.size.y << endl;
+    //    cout << out.size.x << endl;      
+    // }
+
     return 0;
 }
