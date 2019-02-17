@@ -26,9 +26,9 @@ int test_save(void)
 
 int main(int argc, char **argv)
 {
-    string fn_weight = "./data/weight_00.npy";
-    string fn_bias = "./data/bias_00.npy";
-    string fn_input = "./data/input.npy";
+    string fn_weight = "test_data/test_weight.npy";
+    string fn_bias = "test_data/test_bias.npy";
+    string fn_input = "test_data/test_input.npy";
     vector<float> weight_data;
     vector<float> bias_data;
     vector<float> input_data;
@@ -40,20 +40,26 @@ int main(int argc, char **argv)
     LoadArrayFromNumpy(fn_bias, bias_shape, bias_data);
     LoadArrayFromNumpy(fn_input, input_shape, input_data);
 
-    tensor_t<float> image_tensor(224, 224, 3);
+    tensor_t<float> image_tensor(5, 5, 3);
     to_tensor(input_data, image_tensor);
 
-    tdsize shape = {224,224,3};
-    conv_layer_t *layer = new conv_layer_t(1, 3, 16, 1, shape);
+    // for (int i =0;i<3;i++)
+    //     for (int j =0; j<3; j++)
+    //         for (int k =0; k<3; k++)
+    //             cout << image_tensor(i,j,k) << endl;
+
+    tdsize shape = {5,5,3};
+    conv_layer_t *layer = new conv_layer_t(1, 3, 2, 0, shape);
+    // conv_layer_t *layer = new conv_layer_t(2, 3, 2, 1, shape);
     layer->load_weights(weight_data);
     layer->load_bias(bias_data);
 
     layer->activate(image_tensor);
     tensor_t<float> out_tensor = layer->out;
-    vector<float> out_data(224*224*16,0);
-    const long unsigned leshape[] = {224, 224, 16};
+    vector<float> out_data(3*3*2,0);
+    const long unsigned leshape[] = {3, 3, 2};
     from_tensor(out_tensor, out_data);
-    SaveArrayAsNumpy("./results_c.npy", false, 3, leshape, out_data);
+    SaveArrayAsNumpy("test_data/output.npy", false, 3, leshape, out_data);
    
     return 0;
 }

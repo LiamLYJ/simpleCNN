@@ -2,3 +2,4 @@ data/
 .DS*
 train*
 build/
+test_data/

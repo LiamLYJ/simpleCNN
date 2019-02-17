@@ -30,6 +30,12 @@ struct tensor_t
 		this->size = other.size;
 	}
 
+	// tensor_t<T> operator=( const tensor_t<T>& other )
+	// {
+	// 	tensor_t<T> clone( other );
+	// 	return clone;
+	// }
+
 	tensor_t<T> operator+( tensor_t<T>& other )
 	{
 		tensor_t<T> clone( *this );
@@ -128,10 +134,14 @@ static void to_tensor( std::vector<float> data, tensor_t<float> & tensor)
 	int y = tensor.size.y;
 	int z = tensor.size.z;
 
+	auto pointer = data.begin();
 	for ( int i = 0; i < x; i++ )
 		for ( int j = 0; j < y; j++ )
 			for ( int k = 0; k < z; k++ )
-				tensor( i, j, k ) = data[i * x + j * y + k*z];
+				{
+					tensor( i, j, k ) = *pointer; 
+					pointer ++;
+				}
 }
 
 static void from_tensor( tensor_t<float> tensor, std::vector<float> & data)
@@ -140,8 +150,12 @@ static void from_tensor( tensor_t<float> tensor, std::vector<float> & data)
 	int y = tensor.size.y;
 	int z = tensor.size.z;
 
+	auto pointer = data.begin();
 	for ( int i = 0; i < x; i++ )
 		for ( int j = 0; j < y; j++ )
 			for ( int k = 0; k < z; k++ )
-				data[i*x + j*y + k*z] = tensor(i,j,k);
+				{
+				*pointer = tensor(i,j,k);
+				pointer ++;
+				}
 }

@@ -119,13 +119,17 @@ struct conv_layer_t
 		int x = this->filters[0].size.x;
 
     std::vector<tensor_t<float>>::iterator filter_p = this->filters.begin();
+		auto pointer = data.begin();
 		for (int v = 0; v < c; v++)
 		{
 			for (int i = 0; i < x; i++)
 				for (int j = 0; j < y; j++)
 					for (int k = 0; k < z; k++)
-						(*filter_p)(i, j, k) = data[v*c + i *x + j*y + k*z];
-            filter_p ++;
+						{
+						(*filter_p)(i, j, k) = *pointer;
+						pointer ++;
+						}
+      filter_p ++;
 		}
 	}
 
@@ -133,9 +137,18 @@ struct conv_layer_t
 	{
 		this->bias.assign(data.begin(), data.end());
 	}
+
 	void activate(tensor_t<float> &in)
 	{
 		this->in = conv_pad(in);
+    for (int i =0;i<5;i++)
+        for (int j =0; j<5; j++)
+            for (int k =0; k<3; k++)
+							{
+                std::cout << "this in is "<< this->in(i,j,k) << std::endl;
+								auto tmpa = this->in(i,j,k);
+								auto tmpb = in(i,j,k);
+							}
 		activate();
 	}
 
@@ -155,6 +168,7 @@ struct conv_layer_t
 							for (int z = 0; z < in.size.z; z++)
 							{
 								float f = filter_data(i, j, z);
+								auto tmp = in(mapped.x + i, mapped.y + j, z);
 								float v = in(mapped.x + i, mapped.y + j, z);
 								sum += f * v;
 							}
