@@ -30,11 +30,21 @@ struct tensor_t
 		this->size = other.size;
 	}
 
-	// tensor_t<T> operator=( const tensor_t<T>& other )
-	// {
-	// 	tensor_t<T> clone( other );
-	// 	return clone;
-	// }
+	tensor_t<T>& operator=( const tensor_t<T>& other )
+	{
+
+		if (this == &other)
+			return *this;
+		delete data; 
+		data = new T[other.size.x *other.size.y *other.size.z];
+		memcpy(
+			this->data,
+			other.data,
+			other.size.x *other.size.y *other.size.z * sizeof( T )
+		);
+		this->size = other.size;
+		return *this;
+	}
 
 	tensor_t<T> operator+( tensor_t<T>& other )
 	{

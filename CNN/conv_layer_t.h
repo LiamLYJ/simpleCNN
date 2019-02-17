@@ -5,19 +5,16 @@
 struct conv_layer_t
 {
 	layer_type type = layer_type::conv;
-	tensor_t<float> grads_in;
 	tensor_t<float> in;
 	tensor_t<float> out;
 	std::vector<tensor_t<float>> filters;
 	std::vector<float> bias;
-	std::vector<tensor_t<gradient_t>> filter_grads;
 	uint16_t stride;
 	uint16_t extend_filter;
 	uint16_t padding;
 
 	conv_layer_t(uint16_t stride, uint16_t extend_filter, uint16_t number_filters, uint16_t padding, tdsize in_size)
-		: grads_in(in_size.x, in_size.y, in_size.z),
-		  in(in_size.x, in_size.y, in_size.z),
+		:	in(in_size.x, in_size.y, in_size.z),
 		  out(
 			  (in_size.x - extend_filter + 2 * padding) / stride + 1,
 			  (in_size.y - extend_filter + 2 * padding) / stride + 1,
@@ -43,11 +40,6 @@ struct conv_layer_t
 					for (int z = 0; z < in_size.z; z++)
 						t(i, j, z) = 1.0f / maxval * rand() / float(RAND_MAX);
 			filters.push_back(t);
-		}
-		for (int i = 0; i < number_filters; i++)
-		{
-			tensor_t<gradient_t> t(extend_filter, extend_filter, in_size.z);
-			filter_grads.push_back(t);
 		}
 	}
 
@@ -141,14 +133,6 @@ struct conv_layer_t
 	void activate(tensor_t<float> &in)
 	{
 		this->in = conv_pad(in);
-    for (int i =0;i<5;i++)
-        for (int j =0; j<5; j++)
-            for (int k =0; k<3; k++)
-							{
-                std::cout << "this in is "<< this->in(i,j,k) << std::endl;
-								auto tmpa = this->in(i,j,k);
-								auto tmpb = in(i,j,k);
-							}
 		activate();
 	}
 
@@ -168,7 +152,6 @@ struct conv_layer_t
 							for (int z = 0; z < in.size.z; z++)
 							{
 								float f = filter_data(i, j, z);
-								auto tmp = in(mapped.x + i, mapped.y + j, z);
 								float v = in(mapped.x + i, mapped.y + j, z);
 								sum += f * v;
 							}
@@ -178,57 +161,5 @@ struct conv_layer_t
 		}
 	}
 
-	void fix_weights()
-	{
-		for (int a = 0; a < filters.size(); a++)
-			for (int i = 0; i < extend_filter; i++)
-				for (int j = 0; j < extend_filter; j++)
-					for (int z = 0; z < in.size.z; z++)
-					{
-						float &w = filters[a].get(i, j, z);
-						gradient_t &grad = filter_grads[a].get(i, j, z);
-						w = update_weight(w, grad);
-						update_gradient(grad);
-					}
-	}
-
-	void calc_grads(tensor_t<float> &grad_next_layer)
-	{
-
-		for (int k = 0; k < filter_grads.size(); k++)
-		{
-			for (int i = 0; i < extend_filter; i++)
-				for (int j = 0; j < extend_filter; j++)
-					for (int z = 0; z < in.size.z; z++)
-						filter_grads[k].get(i, j, z).grad = 0;
-		}
-
-		for (int x = 0; x < in.size.x; x++)
-		{
-			for (int y = 0; y < in.size.y; y++)
-			{
-				range_t rn = map_to_output(x, y);
-				for (int z = 0; z < in.size.z; z++)
-				{
-					float sum_error = 0;
-					for (int i = rn.min_x; i <= rn.max_x; i++)
-					{
-						int minx = i * stride;
-						for (int j = rn.min_y; j <= rn.max_y; j++)
-						{
-							int miny = j * stride;
-							for (int k = rn.min_z; k <= rn.max_z; k++)
-							{
-								int w_applied = filters[k].get(x - minx, y - miny, z);
-								sum_error += w_applied * grad_next_layer(i, j, k);
-								filter_grads[k].get(x - minx, y - miny, z).grad += in(x, y, z) * grad_next_layer(i, j, k);
-							}
-						}
-					}
-					grads_in(x, y, z) = sum_error;
-				}
-			}
-		}
-	}
 };
 #pragma pack(pop)

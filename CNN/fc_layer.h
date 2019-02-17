@@ -8,23 +8,18 @@
 struct fc_layer_t
 {
 	layer_type type = layer_type::fc;
-	tensor_t<float> grads_in;
 	tensor_t<float> in;
 	tensor_t<float> out;
 	std::vector<float> input;
 	tensor_t<float> weights;
-	std::vector<gradient_t> gradients;
 
 	fc_layer_t( tdsize in_size, int out_size )
 		:
 		in( in_size.x, in_size.y, in_size.z ),
 		out( out_size, 1, 1 ),
-		grads_in( in_size.x, in_size.y, in_size.z ),
 		weights( in_size.x*in_size.y*in_size.z, out_size, 1 )
 	{
 		input = std::vector<float>( out_size );
-		gradients = std::vector<gradient_t>( out_size );
-
 
 		int maxval = in_size.x * in_size.y * in_size.z;
 
@@ -82,40 +77,5 @@ struct fc_layer_t
 		}
 	}
 
-	void fix_weights()
-	{
-		for ( int n = 0; n < out.size.x; n++ )
-		{
-			gradient_t& grad = gradients[n];
-			for ( int i = 0; i < in.size.x; i++ )
-				for ( int j = 0; j < in.size.y; j++ )
-					for ( int z = 0; z < in.size.z; z++ )
-					{
-						int m = map( { i, j, z } );
-						float& w = weights( m, n, 0 );
-						w = update_weight( w, grad, in( i, j, z ) );
-					}
-
-			update_gradient( grad );
-		}
-	}
-
-	void calc_grads( tensor_t<float>& grad_next_layer )
-	{
-		memset( grads_in.data, 0, grads_in.size.x *grads_in.size.y*grads_in.size.z * sizeof( float ) );
-		for ( int n = 0; n < out.size.x; n++ )
-		{
-			gradient_t& grad = gradients[n];
-			grad.grad = grad_next_layer( n, 0, 0 ) * activator_derivative( input[n] );
-
-			for ( int i = 0; i < in.size.x; i++ )
-				for ( int j = 0; j < in.size.y; j++ )
-					for ( int z = 0; z < in.size.z; z++ )
-					{
-						int m = map( { i, j, z } );
-						grads_in( i, j, z ) += grad.grad * weights( m, n, 0 );
-					}
-		}
-	}
 };
 #pragma pack(pop)

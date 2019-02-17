@@ -57,7 +57,7 @@ input_data = np.array(
     )
 
 input = input_data.reshape([1,3,5,5]) # torch shape : b,c,h,w
-input_save = np.transpose(input.squeeze(), [2,1,0] ).astype(np.float32)
+input_save = np.transpose(input.squeeze(), [1,2,0] ).astype(np.float32)
 np.save(os.path.join(save_dir,'test_input.npy'), input_save)
 
 
@@ -125,6 +125,6 @@ conv_input = torch.Tensor(input)
 conv_output = F.conv2d(input = conv_input, weight = conv_weight, bias = conv_bias, stride = 1, padding = 0) 
 
 output = conv_output.numpy().squeeze()
-output_save = np.transpose(output, [2,1,0]).astype(np.float32)
+output_save = np.transpose(output, [1,2,0]).astype(np.float32)
 np.save(os.path.join(save_dir, 'test_output.npy'), output_save)
 

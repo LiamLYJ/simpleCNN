@@ -5,7 +5,6 @@
 struct pool_layer_t
 {
 	layer_type type = layer_type::pool;
-	tensor_t<float> grads_in;
 	tensor_t<float> in;
 	tensor_t<float> out;
 	uint16_t stride;
@@ -13,7 +12,6 @@ struct pool_layer_t
 
 	pool_layer_t( uint16_t stride, uint16_t extend_filter, tdsize in_size )
 		:
-		grads_in( in_size.x, in_size.y, in_size.z ),
 		in( in_size.x, in_size.y, in_size.z ),
 		out(
 		(in_size.x - extend_filter) / stride + 1,
@@ -47,35 +45,6 @@ struct pool_layer_t
 		int max_x, max_y, max_z;
 	};
 
-	int normalize_range( float f, int max, bool lim_min )
-	{
-		if ( f <= 0 )
-			return 0;
-		max -= 1;
-		if ( f >= max )
-			return max;
-
-		if ( lim_min ) // left side of inequality
-			return ceil( f );
-		else
-			return floor( f );
-	}
-
-	range_t map_to_output( int x, int y )
-	{
-		float a = x;
-		float b = y;
-		return
-		{
-			normalize_range( (a - extend_filter + 1) / stride, out.size.x, true ),
-			normalize_range( (b - extend_filter + 1) / stride, out.size.y, true ),
-			0,
-			normalize_range( a / stride, out.size.x, false ),
-			normalize_range( b / stride, out.size.y, false ),
-			(int)out.size.z - 1,
-		};
-	}
-
 	void activate( tensor_t<float>& in )
 	{
 		this->in = in;
@@ -105,36 +74,5 @@ struct pool_layer_t
 		}
 	}
 
-	void fix_weights()
-	{
-
-	}
-
-	void calc_grads( tensor_t<float>& grad_next_layer )
-	{
-		for ( int x = 0; x < in.size.x; x++ )
-		{
-			for ( int y = 0; y < in.size.y; y++ )
-			{
-				range_t rn = map_to_output( x, y );
-				for ( int z = 0; z < in.size.z; z++ )
-				{
-					float sum_error = 0;
-					for ( int i = rn.min_x; i <= rn.max_x; i++ )
-					{
-						int minx = i * stride;
-						for ( int j = rn.min_y; j <= rn.max_y; j++ )
-						{
-							int miny = j * stride;
-
-							int is_max = in( x, y, z ) == out( i, j, z ) ? 1 : 0;
-							sum_error += is_max * grad_next_layer( i, j, z );
-						}
-					}
-					grads_in( x, y, z ) = sum_error;
-				}
-			}
-		}
-	}
 };
 #pragma pack(pop)

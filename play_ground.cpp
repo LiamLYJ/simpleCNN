@@ -43,11 +43,6 @@ int main(int argc, char **argv)
     tensor_t<float> image_tensor(5, 5, 3);
     to_tensor(input_data, image_tensor);
 
-    // for (int i =0;i<3;i++)
-    //     for (int j =0; j<3; j++)
-    //         for (int k =0; k<3; k++)
-    //             cout << image_tensor(i,j,k) << endl;
-
     tdsize shape = {5,5,3};
     conv_layer_t *layer = new conv_layer_t(1, 3, 2, 0, shape);
     // conv_layer_t *layer = new conv_layer_t(2, 3, 2, 1, shape);
