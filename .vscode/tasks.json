@@ -11,7 +11,8 @@
         {
             "label": "play_ground_build",
             "type": "shell",
-            "command": "python torch_conv.py && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
+            "command": "cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
+            // "command": "python torch_conv.py && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
         }
     ]
 }

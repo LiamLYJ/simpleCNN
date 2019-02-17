@@ -91,7 +91,7 @@ struct tensor_t
 					get( i, j, k ) = data[k][j][i];
 	}
 
-    void copy_from_padding( tensor_t<float> data)
+    void copy_from_padding(tensor_t<float>& data)
     {
         int x = this->size.x;
         int y = this->size.y;

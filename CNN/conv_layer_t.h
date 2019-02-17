@@ -69,7 +69,7 @@ struct conv_layer_t
 		}
 	}
 
-    void load_weights(std::vector<float> data)
+  void load_weights(std::vector<float> data)
 	{
 		int c = this->filters.size();
 		int z = this->filters[0].size.z;
@@ -91,7 +91,7 @@ struct conv_layer_t
 		}
 	}
 
-    void load_bias(std::vector<float> data)
+  void load_bias(std::vector<float> data)
 	{
 		this->bias.assign(data.begin(), data.end());
 	}
