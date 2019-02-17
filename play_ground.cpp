@@ -44,8 +44,8 @@ int main(int argc, char **argv)
     to_tensor(input_data, image_tensor);
 
     tdsize shape = {5,5,3};
-    conv_layer_t *layer = new conv_layer_t(1, 3, 2, 0, shape);
-    // conv_layer_t *layer = new conv_layer_t(2, 3, 2, 1, shape);
+    // conv_layer_t *layer = new conv_layer_t(1, 3, 2, 0, shape);
+    conv_layer_t *layer = new conv_layer_t(2, 3, 2, 1, shape);
     layer->load_weights(weight_data);
     layer->load_bias(bias_data);
 

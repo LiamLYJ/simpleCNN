@@ -51,40 +51,6 @@ struct conv_layer_t
 		return out;
 	}
 
-	struct range_t
-	{
-		int min_x, min_y, min_z;
-		int max_x, max_y, max_z;
-	};
-
-	int normalize_range(float f, int max, bool lim_min)
-	{
-		if (f <= 0)
-			return 0;
-		max -= 1;
-		if (f >= max)
-			return max;
-
-		if (lim_min) // left side of inequality
-			return ceil(f);
-		else
-			return floor(f);
-	}
-
-	range_t map_to_output(int x, int y)
-	{
-		float a = x;
-		float b = y;
-		return {
-			normalize_range((a - extend_filter + 1) / stride, out.size.x, true),
-			normalize_range((b - extend_filter + 1) / stride, out.size.y, true),
-			0,
-			normalize_range(a / stride, out.size.x, false),
-			normalize_range(b / stride, out.size.y, false),
-			(int)filters.size() - 1,
-		};
-	}
-
 	tensor_t<float> conv_pad(tensor_t<float> in)
 	{
 		uint8_t x = in.size.x + 2 * padding;
@@ -94,7 +60,7 @@ struct conv_layer_t
 		if (padding > 0)
 		{
 			tensor_t<float> padded(x, y, z);
-			padded.copy_from_padding(in, padding);
+			padded.copy_from_padding(in);
 			return padded;
 		}
 		else 

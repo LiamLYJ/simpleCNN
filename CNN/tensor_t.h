@@ -91,16 +91,18 @@ struct tensor_t
 					get( i, j, k ) = data[k][j][i];
 	}
 
-    void copy_from_padding( tensor_t<float> data, uint8_t padding)
+    void copy_from_padding( tensor_t<float> data)
     {
-        int x = data.size.x;
-        int y = data.size.y;
-        int z = data.size.z;
+        int x = this->size.x;
+        int y = this->size.y;
+        int z = this->size.z;
+		uint8_t padding = (x - data.size.x) / 2;
+		assert (padding == (y - data.size.y) / 2);
         
         for ( int i = padding; i < x - padding; i++ )
             for ( int j = padding; j < y - padding; j++ )
                 for ( int k = 0; k < z; k++ )
-                    get( i, j, k ) = data(i,j,k);
+                    get( i, j, k ) = data(i - padding,j - padding,k);
 
         for ( int i = 0; i < padding; i++ )
             for ( int j = 0; j < padding; j++ )
