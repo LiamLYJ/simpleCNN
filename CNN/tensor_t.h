@@ -62,12 +62,12 @@ struct tensor_t
 		return clone;
 	}
 
-	T& operator()( int _x, int _y, int _z )
+	T& operator()( int _x, int _y, int _z ) const 
 	{
 		return this->get( _x, _y, _z );
 	}
 
-	T& get( int _x, int _y, int _z )
+	T& get( int _x, int _y, int _z ) const
 	{
 		assert( _x >= 0 && _y >= 0 && _z >= 0 );
 		assert( _x < size.x && _y < size.y && _z < size.z );
@@ -91,7 +91,7 @@ struct tensor_t
 					get( i, j, k ) = data[k][j][i];
 	}
 
-    void copy_from_padding(tensor_t<float>& data)
+    void copy_from_padding(tensor_t<T>& data)
     {
         int x = this->size.x;
         int y = this->size.y;
@@ -140,7 +140,8 @@ static void print_tensor( tensor_t<float>& data )
 	}
 }
 
-static void to_tensor( std::vector<float> data, tensor_t<float> & tensor)
+template <typename T>
+static void to_tensor( const std::vector<T> data, tensor_t<T> & tensor)
 {
 	int x = tensor.size.x;
 	int y = tensor.size.y;
@@ -156,18 +157,19 @@ static void to_tensor( std::vector<float> data, tensor_t<float> & tensor)
 				}
 }
 
-static void from_tensor( tensor_t<float> tensor, std::vector<float> & data)
+
+template <typename T>
+static void from_tensor( tensor_t<T> tensor, std::vector<T> & data)
 {
 	int x = tensor.size.x;
 	int y = tensor.size.y;
 	int z = tensor.size.z;
 
-	auto pointer = data.begin();
+	data.clear();
 	for ( int i = 0; i < x; i++ )
 		for ( int j = 0; j < y; j++ )
 			for ( int k = 0; k < z; k++ )
 				{
-				*pointer = tensor(i,j,k);
-				pointer ++;
+					data.push_back(tensor(i,j,k));
 				}
 }

@@ -49,7 +49,8 @@ int main(int argc, char **argv)
     layer->load_weights(weight_data);
     layer->load_bias(bias_data);
 
-    layer->activate(image_tensor);
+    // layer->activate(image_tensor);
+    layer->fix_activate(image_tensor);
     tensor_t<float> out_tensor = layer->out;
     vector<float> out_data(3*3*2,0);
     const long unsigned leshape[] = {3, 3, 2};
