@@ -33,9 +33,9 @@ struct quantization_params
 #pragma pack(pop)
 
 
-void find_min_max(tensor_t<float> &input, float* min, float* max)
+void find_min_max(tensor_t<float> &input, float &min, float &max)
 {
-	*min = *max = input(0,0,0);
+	min = max = input(0,0,0);
 	for (int i = 0; i < input.size.x; i++)
 	{
 		for (int j = 0; j < input.size.y; j++)
@@ -43,16 +43,16 @@ void find_min_max(tensor_t<float> &input, float* min, float* max)
 			for (int k = 0; k <input.size.z; k++)
 			{
 				const float val = input(i, j, k);
-				*min = std::min(*min, val);
-				*max = std::max(*max, val);
+				min = std::min(min, val);
+				max = std::max(max, val);
 			}
 		}
 	}
 }
 
-void find_min_max(vector<tensor_t<float>> &input, float *min, float *max)
+void find_min_max(vector<tensor_t<float>> &input, float &min, float &max)
 {
-	*min = *max = input[0](0,0,0);
+	min = max = input[0](0,0,0);
 	for (auto it = input.begin(); it != input.end(); it++)
 	{
 		tensor_t<float> item = *it;
@@ -63,8 +63,8 @@ void find_min_max(vector<tensor_t<float>> &input, float *min, float *max)
 				for (int k = 0; k <item.size.z; k++)
 				{
 					const float val = item(i, j, k);
-					*min = std::min(*min, val);
-					*max = std::max(*max, val);
+					min = std::min(min, val);
+					max = std::max(max, val);
 				}
 			}
 		}
@@ -116,31 +116,31 @@ quantization_params choose_quantization_params(float min, float max)
 
 
 void quantize(const quantization_params &qparams, const vector<float> &src,
-			  vector<uint8_t> *dst)
+			  vector<uint8_t> &dst)
 {
-	assert(src.size() == dst->size());
+	assert(src.size() == dst.size());
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		const float real_val = src[i];
 		const float transformed_val = qparams.zero_point + real_val / qparams.scale;
 		const float clamped_val = std::max(0.f, std::min(255.f, transformed_val));
-		(*dst)[i] = static_cast<uint8_t>(round(clamped_val));
+		dst[i] = static_cast<uint8_t>(round(clamped_val));
 	}
 }
 
 void dequantize(const quantization_params &qparams,
-				const vector<uint8_t> &src, vector<float> *dst)
+				const vector<uint8_t> &src, vector<float> &dst)
 {
-	assert(src.size() == dst->size());
+	assert(src.size() == dst.size());
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		const uint8_t quantized_val = src[i];
-		(*dst)[i] = qparams.scale * (quantized_val - qparams.zero_point);
+		dst[i] = qparams.scale * (quantized_val - qparams.zero_point);
 	}
 }
 
-void quantize_multiplier(float real_multiplier, int32_t *quantized_multiplier,
-						int *right_shift)
+void quantize_multiplier(float real_multiplier, int32_t &quantized_multiplier,
+						int &right_shift)
 {
 	assert(real_multiplier > 0.f);
 	assert(real_multiplier < 1.f);
@@ -159,6 +159,6 @@ void quantize_multiplier(float real_multiplier, int32_t *quantized_multiplier,
 	}
 	assert(s >= 0);
 	assert(q <= std::numeric_limits<int32_t>::max());
-	*quantized_multiplier = static_cast<int32_t>(q);
-	*right_shift = s;
+	quantized_multiplier = static_cast<int32_t>(q);
+	right_shift = s;
 }

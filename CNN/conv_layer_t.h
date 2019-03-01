@@ -219,7 +219,13 @@ struct conv_layer_t
 		render_params();
 		render_quantize();
 
-		// fix_activate();
+		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params.scale;
+		int32_t fake_m = 0;
+		int right_shift = 0;
+		quantize_multiplier(real_m, fake_m, right_shift);
+
+		fix_multi_convolution(fake_m);
+		// fix_add_bias();
 
 	}
 
@@ -231,19 +237,19 @@ struct conv_layer_t
 
         from_tensor(this->in, tmp_float);
         tmp_uint8.resize(tmp_float.size());
-        quantize(this->in_params, tmp_float, &tmp_uint8);
+        quantize(this->in_params, tmp_float, tmp_uint8);
         // _tmp_float.resize(tmp_float.size());
         // dequantize(this->in_params, tmp_uint8, &_tmp_float);
         to_tensor(tmp_uint8, this->in_fix);
 
         this->from_weights(this->filters, tmp_float);
         tmp_uint8.resize(tmp_float.size());
-        quantize(this->weight_params, tmp_float, &tmp_uint8);
+        quantize(this->weight_params, tmp_float, tmp_uint8);
         this->load_weights(tmp_uint8, this->filters_fix);
 
         this->from_bias(this->bias, tmp_float);
         tmp_uint8.resize(tmp_float.size());
-        quantize(this->bias_params, tmp_float, &tmp_uint8);
+        quantize(this->bias_params, tmp_float, tmp_uint8);
         this->load_bias(tmp_uint8, this->bias_fix);
 
 	}
@@ -251,11 +257,11 @@ struct conv_layer_t
 	void render_params()
 	{
 		float value_min, value_max;
-		find_min_max(this->in, &value_min, &value_max);
+		find_min_max(this->in, value_min, value_max);
 		this->in_params = choose_quantization_params(value_min, value_max);
-		find_min_max(this->out, &value_min, &value_max);
+		find_min_max(this->out, value_min, value_max);
 		this->out_params = choose_quantization_params(value_min, value_max);
-		find_min_max(this->filters, &value_min, &value_max);
+		find_min_max(this->filters, value_min, value_max);
 		this->weight_params = choose_quantization_params(value_min, value_max);
 
         // as suggested in google's paper
@@ -263,11 +269,11 @@ struct conv_layer_t
         this->bias_params.scale = this->in_params.scale * this->weight_params.scale;
 	}
 
-	void fix_activate()
+	void fix_multi_convolution(const int32_t &fake_m)
 	{
-		for (int filter = 0; filter < filters.size(); filter++)
+		for (int filter = 0; filter < filters_fix.size(); filter++)
 		{
-			tensor_t<float> &filter_data = filters[filter];
+			tensor_t<uint8_t> &filter_data = filters_fix[filter];
 			for (int x = 0; x < out_fix.size.x; x++)
 			{
 				for (int y = 0; y < out_fix.size.y; y++)
@@ -276,16 +282,20 @@ struct conv_layer_t
 					float sum = 0;
 					for (int i = 0; i < extend_filter; i++)
 						for (int j = 0; j < extend_filter; j++)
-							for (int z = 0; z < in.size.z; z++)
+							for (int z = 0; z < in_fix.size.z; z++)
 							{
 								float f = filter_data(i, j, z);
 								float v = in_fix(mapped.x + i, mapped.y + j, z);
 								sum += f * v;
 							}
-					out_fix(x, y, filter) = sum + bias[filter];
 				}
 			}
 		}
+	}
+
+	void fix_add_bias()
+	{
+
 	}
 
 };
