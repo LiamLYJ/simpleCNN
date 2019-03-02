@@ -1,4 +1,5 @@
 #pragma once
+#include <numeric>
 #include "layer_t.h"
 
 using namespace std;
@@ -9,22 +10,18 @@ struct conv_layer_t
 	tensor_t<float> in;
 	tensor_t<float> out;
 	tensor_t<uint8_t> out_fix;
-	tensor_t<uint8_t> in_fix;
 	quantization_params in_params;
 	quantization_params out_params;
 	quantization_params weight_params;
 	quantization_params bias_params;
 	vector<tensor_t<float>> filters;
-	vector<tensor_t<uint8_t>> filters_fix;
 	vector<float> bias;
-	vector<uint8_t> bias_fix;
 	uint16_t stride;
 	uint16_t extend_filter;
 	uint16_t padding;
 
 	conv_layer_t(uint16_t stride, uint16_t extend_filter, uint16_t number_filters, uint16_t padding, tdsize in_size)
 		:	in(in_size.x, in_size.y, in_size.z),
-			in_fix(in_size.x, in_size.y, in_size.z),
 		    out(
 			  (in_size.x - extend_filter + 2 * padding) / stride + 1,
 			  (in_size.y - extend_filter + 2 * padding) / stride + 1,
@@ -62,7 +59,6 @@ struct conv_layer_t
                             t_fix(i,j,z) = round(t(i,j,z));
                         }
  			filters.push_back(t);
-            filters_fix.push_back(t_fix);
 		}
 	}
 
@@ -215,43 +211,89 @@ struct conv_layer_t
 	void fix_activate(tensor_t<float> &in)
 	{
 		this->in = conv_pad(in);
+
+		// compute float activate to get output_params, do it offline
 		activate();
 		render_params();
-		render_quantize();
+
+		int rows = this->filters.size();
+		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
+		int cols = this->in.size.y * this->in.size.x;
+		vector<vector <uint8_t>> w_left_mul_matrix(rows, vector<uint8_t>(depth, 1));
+		vector<vector <uint8_t>> in_right_mul_matrix(depth, vector<uint8_t>(cols, 1));
+		render_quantize(w_left_mul_matrix, in_right_mul_matrix);
 
 		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params.scale;
 		int32_t fake_m = 0;
 		int right_shift = 0;
 		quantize_multiplier(real_m, fake_m, right_shift);
 
-		fix_multi_convolution(fake_m);
+		vector<vector<int>> out_fix;
+		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix);
 		// fix_add_bias();
 
 	}
 
-	void render_quantize()
+	void render_quantize(vector<vector<uint8_t>> &w_left_mul_matrix, 
+						vector<vector<uint8_t>> &in_right_mul_matrix)
 	{
-		vector<float> tmp_float;
-		vector<uint8_t> tmp_uint8;
-		// vector<float> _tmp_float;
+		int rows = this->filters.size();
+		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
+		int cols = this->in.size.y * this->in.size.x;
+		vector<vector<float>> weight_matrix(rows, vector<float>(depth, 1));
+		vector<vector<float>> in_matrix(depth, vector<float>(cols, 1));
+		
+		prepare_conv2mul(weight_matrix, in_matrix);
 
-        from_tensor(this->in, tmp_float);
-        tmp_uint8.resize(tmp_float.size());
-        quantize(this->in_params, tmp_float, tmp_uint8);
-        // _tmp_float.resize(tmp_float.size());
-        // dequantize(this->in_params, tmp_uint8, &_tmp_float);
-        to_tensor(tmp_uint8, this->in_fix);
+		for (int i = 0; i < weight_matrix.size(); i++)
+			quantize(this->weight_params, weight_matrix[i], w_left_mul_matrix[i]);
+		for (int i = 0; i < in_matrix.size(); i++)
+			quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
+		
+		// TODO quantize bias
 
-        this->from_weights(this->filters, tmp_float);
-        tmp_uint8.resize(tmp_float.size());
-        quantize(this->weight_params, tmp_float, tmp_uint8);
-        this->load_weights(tmp_uint8, this->filters_fix);
+	}
 
-        this->from_bias(this->bias, tmp_float);
-        tmp_uint8.resize(tmp_float.size());
-        quantize(this->bias_params, tmp_float, tmp_uint8);
-        this->load_bias(tmp_uint8, this->bias_fix);
+	void prepare_conv2mul(vector<vector<float>> &weight, vector<vector<float>> &in)
+	{
+		// refernec on im2col_cython in conv2mul.pyx	
+		int C = this->in.size.z;
+		int H = this->in.size.y;
+		int W = this->in.size.x;
+		int field_height = this->filters[0].size.y;
+		int field_width = this->filters[0].size.x;
+		int stride = this->stride;
 
+		int HH = (H  - field_height) / stride + 1;
+		int WW = (W  - field_width) / stride + 1;
+
+		// weight: [rows, depth] , in [depth, cols]
+		int rows = this->filters.size();
+		int depth = C*field_height*field_width;
+		int cols = HH*WW;
+
+		// render weight_matrix
+		for (int index=0; index< rows; index++)
+		{
+			for ( int i = 0; i < field_width; i++ )
+				for ( int j = 0; j < field_height; j++ )
+					for ( int k = 0; k < C; k++ )
+						weight[index].push_back(this->filters[index](i,j,k));
+		}
+
+		// render in_matrix
+		int _row;
+		int _col;
+		for (int c =0; c < C; c++)
+			for (int yy = 0; yy < HH; yy++)
+				for (int xx = 0; xx < WW; xx++)
+					for (int jj = 0; jj < field_height; jj++)
+						for (int ii = 0; ii < field_width; ii++)
+							{
+								_row = c * field_width * field_height + jj * field_height + ii;
+								_col = yy * WW + xx;
+								in[_row][_col] = this->in(stride * xx + ii, stride * yy + jj, c);
+							}
 	}
 
 	void render_params()
@@ -264,33 +306,47 @@ struct conv_layer_t
 		find_min_max(this->filters, value_min, value_max);
 		this->weight_params = choose_quantization_params(value_min, value_max);
 
-        // as suggested in google's paper
+		// bias.zero_point bias.scale is compute as fixed one as in google's paper
 		this->bias_params.zero_point = 0;
         this->bias_params.scale = this->in_params.scale * this->weight_params.scale;
 	}
 
-	void fix_multi_convolution(const int32_t &fake_m)
+	void fix_multi_convolution(const int32_t &fake_m, const int &right_shift,  
+							const vector<vector<uint8_t>> &left_w, 
+							const vector<vector<uint8_t>> &right_in,
+							vector<vector<int>> &result_out)
 	{
-		for (int filter = 0; filter < filters_fix.size(); filter++)
+		int rows = left_w.size();
+		int depth = left_w[0].size();
+		assert (depth = right_in[0].size());
+		int cols = right_in.size();
+		assert ((rows>0) && (depth> 0) && (cols >0));
+
+		int tmp_sum = 0;
+		int a_1 = 0;
+		int a_2 = 0;
+		for (int i =0; i< rows; i++)
 		{
-			tensor_t<uint8_t> &filter_data = filters_fix[filter];
-			for (int x = 0; x < out_fix.size.x; x++)
+			for (int k =0; k < cols; k++)
 			{
-				for (int y = 0; y < out_fix.size.y; y++)
+				tmp_sum = 0;
+				for (int j =0; j < depth; j++)
 				{
-					point_t mapped = map_to_input({(uint16_t)x, (uint16_t)y, 0}, 0);
-					float sum = 0;
-					for (int i = 0; i < extend_filter; i++)
-						for (int j = 0; j < extend_filter; j++)
-							for (int z = 0; z < in_fix.size.z; z++)
-							{
-								float f = filter_data(i, j, z);
-								float v = in_fix(mapped.x + i, mapped.y + j, z);
-								sum += f * v;
-							}
+					tmp_sum += left_w[i][j] * right_in[j][k];
 				}
+				a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
+				a_2 = 0;	
+				for (int tmp_index = 0; tmp_index < cols; tmp_index++) 
+				{
+					a_2 += right_in[tmp_index][k];
+				}
+				result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
+							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
+				result_out[i][k] = result_out[i][k] * fake_m << right_shift + this->out_params.zero_point;
 			}
 		}
+
+
 	}
 
 	void fix_add_bias()
