@@ -4,15 +4,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "pre_build",
+            "label": "main_build",
             "type": "shell",
-            "command": "cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
+            "command": "cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --target cnn_test --config Debug"
         },
         {
             "label": "play_ground_build",
             "type": "shell",
-            "command": "cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
-            // "command": "python torch_conv.py && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --config Debug"
+            "command": "cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --target play_ground --config Debug"
         }
     ]
 }

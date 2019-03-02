@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: conv2mul",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/conv2mul.py",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Terminal (integrated)",
             "type": "python",
             "request": "launch",
@@ -13,7 +20,7 @@
         },
         
         {
-            "name": "(lldb) Launch",
+            "name": "(lldb) main Launch",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/cnn_test",
@@ -24,7 +31,7 @@
             "externalConsole": false,
             "MIMode": "lldb",
             "miDebuggerPath": "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-mi",
-            "preLaunchTask": "pre_build"
+            "preLaunchTask": "main_build"
         },
         {
             "name": "(lldb)play_ground",

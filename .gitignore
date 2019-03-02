@@ -3,3 +3,5 @@ data/
 train*
 build/
 test_data/
+conv2mul.c
+*.so
