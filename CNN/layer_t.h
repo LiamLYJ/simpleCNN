@@ -136,7 +136,7 @@ void dequantize(const quantization_params &qparams,
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		const T quantized_val = src[i];
-		dst[i] = qparams.scale * (quantized_val - (T)qparams.zero_point);
+		dst[i] = qparams.scale * (quantized_val - static_cast<T>(qparams.zero_point));
 	}
 }
 
