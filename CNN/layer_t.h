@@ -128,14 +128,15 @@ void quantize(const quantization_params &qparams, const vector<float> &src,
 	}
 }
 
+template <typename T>
 void dequantize(const quantization_params &qparams,
-				const vector<uint8_t> &src, vector<float> &dst)
+				const vector<T> &src, vector<float> &dst)
 {
 	assert(src.size() == dst.size());
 	for (size_t i = 0; i < src.size(); i++)
 	{
-		const uint8_t quantized_val = src[i];
-		dst[i] = qparams.scale * (quantized_val - qparams.zero_point);
+		const T quantized_val = src[i];
+		dst[i] = qparams.scale * (quantized_val - (T)qparams.zero_point);
 	}
 }
 

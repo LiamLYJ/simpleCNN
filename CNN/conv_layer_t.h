@@ -2,6 +2,9 @@
 #include <numeric>
 #include "layer_t.h"
 
+#include <Eigen/Dense>
+
+using namespace Eigen;
 using namespace std;
 #pragma pack(push, 1)
 struct conv_layer_t
@@ -214,11 +217,12 @@ struct conv_layer_t
 
 		// compute float activate to get output_params, do it offline
 		activate();
+        // print_tensor(this->out);
 		render_params();
 
 		int rows = this->filters.size();
 		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
-		int cols = this->in.size.y * this->in.size.x;
+		int cols = this->out.size.y * this->out.size.x;
 		vector<vector <uint8_t>> w_left_mul_matrix(rows, vector<uint8_t>(depth, 1));
 		vector<vector <uint8_t>> in_right_mul_matrix(depth, vector<uint8_t>(cols, 1));
 		render_quantize(w_left_mul_matrix, in_right_mul_matrix);
@@ -228,10 +232,23 @@ struct conv_layer_t
 		int right_shift = 0;
 		quantize_multiplier(real_m, fake_m, right_shift);
 
-		vector<vector<int>> out_fix;
+		vector<vector<uint32_t>> out_fix(rows, vector<uint32_t>(cols,1));
 		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix);
 		// fix_add_bias();
 
+
+
+
+		vector<float> _tmp(out_fix.size()*out_fix[0].size(), 1);
+		vector<uint32_t> _out_fix;
+		for (int i =0; i<out_fix.size(); i++)
+		{
+			for (int j =0; j <out_fix[0].size(); j++)
+			{
+				_out_fix.push_back(out_fix[i][j]);
+			}
+		}
+		dequantize(this->out_params, _out_fix, _tmp);
 	}
 
 	void render_quantize(vector<vector<uint8_t>> &w_left_mul_matrix, 
@@ -239,16 +256,23 @@ struct conv_layer_t
 	{
 		int rows = this->filters.size();
 		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
-		int cols = this->in.size.y * this->in.size.x;
+		int cols = this->out.size.y * this->out.size.x;
 		vector<vector<float>> weight_matrix(rows, vector<float>(depth, 1));
 		vector<vector<float>> in_matrix(depth, vector<float>(cols, 1));
 		
 		prepare_conv2mul(weight_matrix, in_matrix);
 
 		for (int i = 0; i < weight_matrix.size(); i++)
-			quantize(this->weight_params, weight_matrix[i], w_left_mul_matrix[i]);
+			{
+				// vector<float> _tmp(weight_matrix[i].size(), 1.0);
+				quantize(this->weight_params, weight_matrix[i], w_left_mul_matrix[i]);
+				// dequantize(this->weight_params, w_left_mul_matrix[i], _tmp);
+				// int aaaa = 0;
+			}
 		for (int i = 0; i < in_matrix.size(); i++)
-			quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
+			{
+				quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
+			}
 		
 		// TODO quantize bias
 
@@ -275,6 +299,7 @@ struct conv_layer_t
 		// render weight_matrix
 		for (int index=0; index< rows; index++)
 		{
+            weight[index].clear();
 			for ( int i = 0; i < field_width; i++ )
 				for ( int j = 0; j < field_height; j++ )
 					for ( int k = 0; k < C; k++ )
@@ -314,11 +339,11 @@ struct conv_layer_t
 	void fix_multi_convolution(const int32_t &fake_m, const int &right_shift,  
 							const vector<vector<uint8_t>> &left_w, 
 							const vector<vector<uint8_t>> &right_in,
-							vector<vector<int>> &result_out)
+							vector<vector<uint32_t>> &result_out)
 	{
 		int rows = left_w.size();
 		int depth = left_w[0].size();
-		assert (depth = right_in[0].size());
+		assert (depth == right_in.size());
 		int cols = right_in.size();
 		assert ((rows>0) && (depth> 0) && (cols >0));
 
@@ -342,7 +367,7 @@ struct conv_layer_t
 				}
 				result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
 							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				result_out[i][k] = result_out[i][k] * fake_m << right_shift + this->out_params.zero_point;
+				result_out[i][k] = ((result_out[i][k] * fake_m) << right_shift) + this->out_params.zero_point;
 			}
 		}
 

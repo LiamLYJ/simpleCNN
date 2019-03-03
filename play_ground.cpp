@@ -8,7 +8,8 @@
 #include "byteswap.h"
 #include "CNN/cnn.h"
 #include "npy.h"
-
+#include <Eigen/Dense>
+using namespace Eigen;
 using namespace std;
 using namespace npy;
 
