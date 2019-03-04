@@ -8,8 +8,6 @@
 #include "byteswap.h"
 #include "CNN/cnn.h"
 #include "npy.h"
-#include <Eigen/Dense>
-using namespace Eigen;
 using namespace std;
 using namespace npy;
 
@@ -42,10 +40,13 @@ int main(int argc, char **argv)
     LoadArrayFromNumpy(fn_input, input_shape, input_data);
 
     tensor_t<float> image_tensor(5, 5, 3);
+    // tensor_t<float> image_tensor(3, 3, 3);
     to_tensor(input_data, image_tensor);
 
     tdsize shape = {5,5,3};
+    // tdsize shape = {3,3,3};
     conv_layer_t *layer = new conv_layer_t(2, 3, 2, 1, shape);
+    // conv_layer_t *layer = new conv_layer_t(1, 2, 2, 0, shape);
     layer->load_weights(weight_data);
     layer->load_bias(bias_data);
 
@@ -56,7 +57,6 @@ int main(int argc, char **argv)
     const long unsigned leshape[] = {3, 3, 2};
     from_tensor(out_tensor, out_data);
     SaveArrayAsNumpy("test_data/output.npy", false, 3, leshape, out_data);
-   
     return 0;
 }
 

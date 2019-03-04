@@ -2,9 +2,10 @@
 #include <numeric>
 #include "layer_t.h"
 
+// use for debugging 
 #include <Eigen/Dense>
-
 using namespace Eigen;
+
 using namespace std;
 #pragma pack(push, 1)
 struct conv_layer_t
@@ -227,28 +228,46 @@ struct conv_layer_t
 		vector<vector <uint8_t>> in_right_mul_matrix(depth, vector<uint8_t>(cols, 1));
 		render_quantize(w_left_mul_matrix, in_right_mul_matrix);
 
+		// for (int i = 0; i < w_left_mul_matrix.size(); i++)
+		// 	{
+		// 		vector<float> _tmpx(w_left_mul_matrix[0].size(), 1);
+		// 		dequantize(this->weight_params, w_left_mul_matrix[i], _tmpx);
+		// 	}
+		// for (int i = 0; i < in_right_mul_matrix.size(); i++)
+		// 	{
+		// 		vector<float> _tmpx(in_right_mul_matrix[0].size(), 1);
+		// 		dequantize(this->in_params, in_right_mul_matrix[i], _tmpx);
+		// 	}
+
+
 		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params.scale;
 		int32_t fake_m = 0;
 		int right_shift = 0;
 		quantize_multiplier(real_m, fake_m, right_shift);
 
-		vector<vector<uint32_t>> out_fix(rows, vector<uint32_t>(cols,1));
-		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix);
+		vector<vector<uint32_t>> out_fix_vector(rows, vector<uint32_t>(cols,1));
+		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix_vector);
 		// fix_add_bias();
 
 
 
-
-		vector<float> _tmp(out_fix.size()*out_fix[0].size(), 1);
 		vector<uint32_t> _out_fix;
-		for (int i =0; i<out_fix.size(); i++)
+		for (int i =0; i<out_fix_vector.size(); i++)
 		{
-			for (int j =0; j <out_fix[0].size(); j++)
+			for (int j =0; j <out_fix_vector[0].size(); j++)
 			{
-				_out_fix.push_back(out_fix[i][j]);
+				_out_fix.push_back(out_fix_vector[i][j]);
 			}
 		}
+
+		vector<float> _tmp(out_fix_vector.size() * out_fix_vector[0].size(), 1);
 		dequantize(this->out_params, _out_fix, _tmp);
+		for (auto pp : _tmp)
+			{
+				cout << pp << endl;
+			}
+
+		print_tensor(this->out);
 	}
 
 	void render_quantize(vector<vector<uint8_t>> &w_left_mul_matrix, 
@@ -263,16 +282,9 @@ struct conv_layer_t
 		prepare_conv2mul(weight_matrix, in_matrix);
 
 		for (int i = 0; i < weight_matrix.size(); i++)
-			{
-				// vector<float> _tmp(weight_matrix[i].size(), 1.0);
-				quantize(this->weight_params, weight_matrix[i], w_left_mul_matrix[i]);
-				// dequantize(this->weight_params, w_left_mul_matrix[i], _tmp);
-				// int aaaa = 0;
-			}
+			quantize(this->weight_params, weight_matrix[i], w_left_mul_matrix[i]);
 		for (int i = 0; i < in_matrix.size(); i++)
-			{
-				quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
-			}
+			quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
 		
 		// TODO quantize bias
 
@@ -300,25 +312,53 @@ struct conv_layer_t
 		for (int index=0; index< rows; index++)
 		{
             weight[index].clear();
-			for ( int i = 0; i < field_width; i++ )
-				for ( int j = 0; j < field_height; j++ )
-					for ( int k = 0; k < C; k++ )
+			for ( int k = 0; k < C; k++ )
+				for ( int i = 0; i < field_width; i++ )
+					for ( int j = 0; j < field_height; j++ )
 						weight[index].push_back(this->filters[index](i,j,k));
 		}
 
 		// render in_matrix
 		int _row;
 		int _col;
-		for (int c =0; c < C; c++)
-			for (int yy = 0; yy < HH; yy++)
-				for (int xx = 0; xx < WW; xx++)
-					for (int jj = 0; jj < field_height; jj++)
-						for (int ii = 0; ii < field_width; ii++)
-							{
-								_row = c * field_width * field_height + jj * field_height + ii;
-								_col = yy * WW + xx;
-								in[_row][_col] = this->in(stride * xx + ii, stride * yy + jj, c);
-							}
+		for (int yy = 0; yy < HH; yy++)
+			for (int xx = 0; xx < WW; xx++)
+				for (int jj = 0; jj < field_height; jj++)
+					 for (int ii = 0; ii < field_width; ii++)
+						for (int c =0; c < C; c++)
+						{
+							_row = c * field_width * field_height + ii * field_height + jj;
+							_col = yy * WW + xx;
+							in[_row][_col] = this->in(stride * xx + ii, stride * yy + jj, c);
+						}
+		
+		// use for debugging
+		MatrixXf eigen_weight(rows, depth);
+		MatrixXf eigen_in(depth, cols);
+
+		for (int i =0; i < rows; i++)
+		{
+			for (int j =0; j < depth; j++)
+			{
+				eigen_weight(i,j) = weight[i][j];
+			}
+		}
+
+		for (int i =0; i < depth; i++)
+		{
+			for (int j=0; j <cols; j++)
+			{
+				eigen_in(i,j) = in[i][j];
+			}
+		}
+
+		MatrixXf eigen_result(rows, cols);
+		eigen_result = eigen_weight * eigen_in;
+		cout << "eigen_weight \n"<< eigen_weight << endl;
+		cout << "eigen_in \n"<< eigen_in << endl;
+		cout << "results is \n" << eigen_result<< endl;
+		cout << "original is\n" <<endl;
+		print_tensor(this->out);
 	}
 
 	void render_params()
@@ -344,12 +384,13 @@ struct conv_layer_t
 		int rows = left_w.size();
 		int depth = left_w[0].size();
 		assert (depth == right_in.size());
-		int cols = right_in.size();
+		int cols = right_in[0].size();
 		assert ((rows>0) && (depth> 0) && (cols >0));
 
 		int tmp_sum = 0;
 		int a_1 = 0;
 		int a_2 = 0;
+		float M;
 		for (int i =0; i< rows; i++)
 		{
 			for (int k =0; k < cols; k++)
@@ -367,11 +408,10 @@ struct conv_layer_t
 				}
 				result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
 							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				result_out[i][k] = ((result_out[i][k] * fake_m) << right_shift) + this->out_params.zero_point;
+				M = static_cast<float>(fake_m) / (1ll << right_shift);
+				result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) + this->out_params.zero_point;
 			}
 		}
-
-
 	}
 
 	void fix_add_bias()

@@ -161,5 +161,5 @@ void quantize_multiplier(float real_multiplier, int32_t &quantized_multiplier,
 	assert(s >= 0);
 	assert(q <= std::numeric_limits<int32_t>::max());
 	quantized_multiplier = static_cast<int32_t>(q);
-	right_shift = s;
+	right_shift = s+32-1;
 }

@@ -1,6 +1,8 @@
 import numpy as np
 import conv2mul
 
+# check on this 
+# http://shuokay.com/2016/06/08/convolution/
 
 def get_im2col_indices(x_shape, field_height, field_width, padding=1, stride=1):
   # First figure out what the size of the output should be
