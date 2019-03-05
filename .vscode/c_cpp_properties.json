@@ -3,8 +3,7 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/usr/local/include/eigen3/"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "macFrameworkPath": [
