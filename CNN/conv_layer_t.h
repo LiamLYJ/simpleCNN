@@ -13,11 +13,11 @@ struct conv_layer_t
 	layer_type type = layer_type::conv;
 	tensor_t<float> in;
 	tensor_t<float> out;
-	tensor_t<uint8_t> out_fix;
-	quantization_params in_params;
-	quantization_params out_params;
-	quantization_params weight_params;
-	quantization_params bias_params;
+	tensor_t<uint32_t> out_fix;
+	quantization_params_8 in_params;
+	quantization_params_16 out_params;
+	quantization_params_8 weight_params;
+	quantization_params_8 bias_params;
 	vector<tensor_t<float>> filters;
 	vector<float> bias;
 	uint16_t stride;
@@ -187,7 +187,7 @@ struct conv_layer_t
 		activate();
 	}
 
-	void activate()
+	void activate(char without_bias = 0)
 	{
 		for (int filter = 0; filter < filters.size(); filter++)
 		{
@@ -206,7 +206,10 @@ struct conv_layer_t
 								float v = in(mapped.x + i, mapped.y + j, z);
 								sum += f * v;
 							}
-					out(x, y, filter) = sum + bias[filter];
+					if (without_bias)
+						out(x, y, filter) = sum;
+					else
+						out(x, y, filter) = sum + bias[filter];
 				}
 			}
 		}
@@ -217,9 +220,24 @@ struct conv_layer_t
 		this->in = conv_pad(in);
 
 		// compute float activate to get output_params, do it offline
-		activate();
-        // print_tensor(this->out);
+		char without_bias = 1;
+		activate(without_bias);
+        print_tensor(this->out);
 		render_params();
+
+		// vector<uint16_t> out_fix_xxx(this->out.size.z * this->out.size.y * this->out.size.x);
+		// vector<float> out_fix_yyy;
+		// for (int z = 0; z <this->out.size.z; z++)
+		// 	for (int y=0; y < this->out.size.y; y++)
+		// 		for (int x= 0; x < this->out.size.x; x++)
+		// 			out_fix_yyy.push_back(this->out(x,y,z));
+
+		// quantize(this->out_params, out_fix_yyy, out_fix_xxx, 16);
+		// vector<float> out_fix_zzz(this->out.size.z * this->out.size.y * this->out.size.x);
+		// dequantize(this->out_params, out_fix_xxx, out_fix_zzz);
+
+
+
 
 		int rows = this->filters.size();
 		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
@@ -228,16 +246,17 @@ struct conv_layer_t
 		vector<vector <uint8_t>> in_right_mul_matrix(depth, vector<uint8_t>(cols, 1));
 		render_quantize(w_left_mul_matrix, in_right_mul_matrix);
 
-		// for (int i = 0; i < w_left_mul_matrix.size(); i++)
-		// 	{
-		// 		vector<float> _tmpx(w_left_mul_matrix[0].size(), 1);
-		// 		dequantize(this->weight_params, w_left_mul_matrix[i], _tmpx);
-		// 	}
-		// for (int i = 0; i < in_right_mul_matrix.size(); i++)
-		// 	{
-		// 		vector<float> _tmpx(in_right_mul_matrix[0].size(), 1);
-		// 		dequantize(this->in_params, in_right_mul_matrix[i], _tmpx);
-		// 	}
+		for (int i = 0; i < w_left_mul_matrix.size(); i++)
+			{
+				vector<float> _tmpx(w_left_mul_matrix[0].size(), 1);
+				dequantize(this->weight_params, w_left_mul_matrix[i], _tmpx);
+				int aaaa=0;
+			}
+		for (int i = 0; i < in_right_mul_matrix.size(); i++)
+			{
+				vector<float> _tmpx(in_right_mul_matrix[0].size(), 1);
+				dequantize(this->in_params, in_right_mul_matrix[i], _tmpx);
+			}
 
 
 		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params.scale;
@@ -245,13 +264,14 @@ struct conv_layer_t
 		int right_shift = 0;
 		quantize_multiplier(real_m, fake_m, right_shift);
 
-		vector<vector<uint32_t>> out_fix_vector(rows, vector<uint32_t>(cols,1));
+		vector<vector<uint16_t>> out_fix_vector(rows, vector<uint16_t>(cols,1));
 		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix_vector);
 		// fix_add_bias();
 
+		// debugging
 
 
-		vector<uint32_t> _out_fix;
+		vector<uint16_t> _out_fix;
 		for (int i =0; i<out_fix_vector.size(); i++)
 		{
 			for (int j =0; j <out_fix_vector[0].size(); j++)
@@ -333,43 +353,43 @@ struct conv_layer_t
 						}
 		
 		// use for debugging
-		MatrixXf eigen_weight(rows, depth);
-		MatrixXf eigen_in(depth, cols);
+		// MatrixXf eigen_weight(rows, depth);
+		// MatrixXf eigen_in(depth, cols);
 
-		for (int i =0; i < rows; i++)
-		{
-			for (int j =0; j < depth; j++)
-			{
-				eigen_weight(i,j) = weight[i][j];
-			}
-		}
+		// for (int i =0; i < rows; i++)
+		// {
+		// 	for (int j =0; j < depth; j++)
+		// 	{
+		// 		eigen_weight(i,j) = weight[i][j];
+		// 	}
+		// }
 
-		for (int i =0; i < depth; i++)
-		{
-			for (int j=0; j <cols; j++)
-			{
-				eigen_in(i,j) = in[i][j];
-			}
-		}
+		// for (int i =0; i < depth; i++)
+		// {
+		// 	for (int j=0; j <cols; j++)
+		// 	{
+		// 		eigen_in(i,j) = in[i][j];
+		// 	}
+		// }
 
-		MatrixXf eigen_result(rows, cols);
-		eigen_result = eigen_weight * eigen_in;
-		cout << "eigen_weight \n"<< eigen_weight << endl;
-		cout << "eigen_in \n"<< eigen_in << endl;
-		cout << "results is \n" << eigen_result<< endl;
-		cout << "original is\n" <<endl;
-		print_tensor(this->out);
+		// MatrixXf eigen_result(rows, cols);
+		// eigen_result = eigen_weight * eigen_in;
+		// cout << "eigen_weight \n"<< eigen_weight << endl;
+		// cout << "eigen_in \n"<< eigen_in << endl;
+		// cout << "results is \n" << eigen_result<< endl;
+		// cout << "original is\n" <<endl;
+		// print_tensor(this->out);
 	}
 
 	void render_params()
 	{
 		float value_min, value_max;
 		find_min_max(this->in, value_min, value_max);
-		this->in_params = choose_quantization_params(value_min, value_max);
+		choose_quantization_params<quantization_params_8, uint8_t>(value_min, value_max, this->in_params);
 		find_min_max(this->out, value_min, value_max);
-		this->out_params = choose_quantization_params(value_min, value_max);
+		choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params, 16);
 		find_min_max(this->filters, value_min, value_max);
-		this->weight_params = choose_quantization_params(value_min, value_max);
+		choose_quantization_params<quantization_params_8, uint8_t>(value_min, value_max, this->weight_params);
 
 		// bias.zero_point bias.scale is compute as fixed one as in google's paper
 		this->bias_params.zero_point = 0;
@@ -379,7 +399,7 @@ struct conv_layer_t
 	void fix_multi_convolution(const int32_t &fake_m, const int &right_shift,  
 							const vector<vector<uint8_t>> &left_w, 
 							const vector<vector<uint8_t>> &right_in,
-							vector<vector<uint32_t>> &result_out)
+							vector<vector<uint16_t>> &result_out)
 	{
 		int rows = left_w.size();
 		int depth = left_w[0].size();
@@ -387,29 +407,37 @@ struct conv_layer_t
 		int cols = right_in[0].size();
 		assert ((rows>0) && (depth> 0) && (cols >0));
 
-		int tmp_sum = 0;
-		int a_1 = 0;
-		int a_2 = 0;
-		float M;
+		const float M = static_cast<float>(fake_m) / (1ll << right_shift);
 		for (int i =0; i< rows; i++)
 		{
 			for (int k =0; k < cols; k++)
 			{
-				tmp_sum = 0;
-				for (int j =0; j < depth; j++)
+				// google method2
+				// int tmp_sum = 0;
+				// for (int j =0; j < depth; j++)
+				// {
+				// 	tmp_sum += left_w[i][j] * right_in[j][k];
+				// }
+				// int a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
+				// int a_2 = 0;	
+				// for (int tmp_index = 0; tmp_index < cols; tmp_index++) 
+				// {
+				// 	a_2 += right_in[tmp_index][k];
+				// }
+				// result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
+				// 			this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
+
+				//google method1 
+				int tmp_sum = 0;
+				for (int j=0; j<depth; j++)
 				{
-					tmp_sum += left_w[i][j] * right_in[j][k];
+					tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
 				}
-				a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
-				a_2 = 0;	
-				for (int tmp_index = 0; tmp_index < cols; tmp_index++) 
-				{
-					a_2 += right_in[tmp_index][k];
-				}
-				result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
-							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				M = static_cast<float>(fake_m) / (1ll << right_shift);
-				result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) + this->out_params.zero_point;
+				result_out[i][k] = tmp_sum;
+
+
+
+				result_out[i][k] = static_cast<uint16_t>(result_out[i][k] * M) - this->out_params.zero_point;
 			}
 		}
 	}

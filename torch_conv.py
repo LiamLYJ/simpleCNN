@@ -110,6 +110,9 @@ weight_data = np.array(
         0,0,0]]
     ]
 )
+
+weight_data = np.abs(weight_data)
+
 weight = weight_data.reshape([2,3,3,3]) # torch shape o_c,i_c, h,w
 weight_save = np.transpose(weight, [0,2,3,1]).astype(np.float32)
 np.save(os.path.join(save_dir, 'test_weight.npy'), weight_save)
