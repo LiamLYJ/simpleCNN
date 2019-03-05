@@ -1,7 +1,7 @@
 #pragma once
+#include <math.h>
 #include "types.h"
 #include "tensor_t.h"
-#include <math.h>
 using namespace std;
 
 #pragma pack(push, 1)
@@ -10,6 +10,44 @@ struct layer_t
 	layer_type type;
 	tensor_t<float> in;
 	tensor_t<float> out;
+};
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+struct quantization_params
+{
+	float scale;
+	uint8_t zero_point;
+	quantization_params(float _scale, uint8_t _zero_point)
+	{
+		this->scale = _scale;
+		this->zero_point = _zero_point;
+	}
+	quantization_params(void)
+	{
+		this->scale = 0.f;
+		this->zero_point = 0;
+	}
+};
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+struct quantization_params_8
+{
+	float scale;
+	uint8_t zero_point;
+	quantization_params_8(float _scale, uint8_t _zero_point)
+	{
+		this->scale = _scale;
+		this->zero_point = _zero_point;
+	}
+	quantization_params_8(void)
+	{
+		this->scale = 0.f;
+		this->zero_point = 0;
+	}
 };
 #pragma pack(pop)
 
@@ -24,7 +62,6 @@ struct quantization_params_16
 		this->scale = _scale;
 		this->zero_point = _zero_point;
 	}
-
 	quantization_params_16(void)
 	{
 		this->scale = 0.f;
@@ -33,24 +70,7 @@ struct quantization_params_16
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-struct quantization_params_8
-{
-	float scale;
-	uint16_t zero_point;
-	quantization_params_8(float _scale, uint8_t _zero_point)
-	{
-		this->scale = _scale;
-		this->zero_point = _zero_point;
-	}
 
-	quantization_params_8(void)
-	{
-		this->scale = 0.f;
-		this->zero_point = 0;
-	}
-};
-#pragma pack(pop)
 
 void find_min_max(tensor_t<float> &input, float &min, float &max)
 {
@@ -102,12 +122,22 @@ void find_min_max(const vector<float> &input, float *min, float *max)
 }
 
 template <typename T, typename T1>
-void choose_quantization_params(float min, float max, T &result, char bits = 8)
+void choose_quantization_params(float min, float max, T &result)
 {
 	min = std::min(min, 0.f);
 	max = std::max(max, 0.f);
+	assert (typeid(T1) == typeid(result.zero_point));
 
-	assert (bits == 8 || bits == 16);
+	int bits = 0;
+	if (typeid(result.zero_point) == typeid(uint8_t))
+		bits = 8;
+	else if (typeid(result.zero_point) == typeid(uint16_t))
+		bits = 16;
+	else if (typeid(result.zero_point) == typeid(uint32_t))
+		bits = 32;
+	else
+		assert (0);
+	
 	const float qmin = 0;
 	const float qmax = pow(2,bits) - 1;
 
@@ -133,24 +163,34 @@ void choose_quantization_params(float min, float max, T &result, char bits = 8)
 	result.zero_point = nudged_zero_point;
 }
 
-template <typename T, typename Tp>
-void quantize(const Tp &qparams, const vector<float> &src,
-			  vector<T> &dst, char bits = 8)
+template <typename T, typename T1>
+void quantize(const T1 &qparams, const vector<float> &src,
+			  vector<T> &dst)
 {
-	assert (bits == 8 || bits == 16);
-	const float qmax = (pow(2,bits)) -1 ;
+	assert (typeid(T) == typeid(qparams.zero_point));
+	int bits = 0;
+	if (typeid(dst[0]) == typeid(uint8_t))
+		bits = 8;
+	else if (typeid(dst[0]) == typeid(uint16_t))
+		bits = 16;
+	else if (typeid(dst[0]) == typeid(uint32_t))
+		bits = 32;
+	else
+		assert (0);
+
 	assert(src.size() == dst.size());
+	float max_value = pow(2, bits) - 1;
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		const float real_val = src[i];
 		const float transformed_val = qparams.zero_point + real_val / qparams.scale;
-		const float clamped_val = std::max(0.f, std::min(qmax, transformed_val));
+		const float clamped_val = std::max(0.f, std::min(max_value, transformed_val));
 		dst[i] = static_cast<T>(round(clamped_val));
 	}
 }
 
-template <typename T, typename Tp>
-void dequantize(const Tp &qparams,
+template <typename T, typename T1>
+void dequantize(const T1 &qparams,
 				const vector<T> &src, vector<float> &dst)
 {
 	assert(src.size() == dst.size());
