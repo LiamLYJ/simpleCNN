@@ -15,8 +15,7 @@ struct conv_layer_t
 	tensor_t<float> out;
 	tensor_t<uint8_t> out_fix;
 	quantization_params in_params;
-	// quantization_params_16 out_params;
-	quantization_params_8 out_params;
+	quantization_params_16 out_params;
 	quantization_params weight_params;
 	quantization_params bias_params;
 	vector<tensor_t<float>> filters;
@@ -383,8 +382,7 @@ struct conv_layer_t
 		find_min_max(this->in, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->in_params);
 		find_min_max(this->out, value_min, value_max);
-		// choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params);
-		choose_quantization_params<quantization_params_8, uint8_t>(value_min, value_max, this->out_params);
+		choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params);
 		find_min_max(this->filters, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->weight_params);
 

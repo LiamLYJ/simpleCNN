@@ -58,7 +58,6 @@ input_data = np.array(
 
 
 # input_data = np.random.uniform(-1,1, 75)
-# input_data = np.abs(input_data)
 
 input = input_data.reshape([1,3,5,5]) # torch shape : b,c,h,w
 input_save = np.transpose(input.squeeze(), [1,2,0] ).astype(np.float32)
@@ -117,7 +116,6 @@ weight_data = np.array(
 
 
 # weight_data = np.random.uniform(-1,1,54)
-# weight_data = np.abs(weight_data)
 
 weight = weight_data.reshape([2,3,3,3]) # torch shape o_c,i_c, h,w
 weight_save = np.transpose(weight, [0,2,3,1]).astype(np.float32)
