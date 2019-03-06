@@ -410,29 +410,31 @@ struct conv_layer_t
 			for (int k =0; k < cols; k++)
 			{
 				//google method1 
-				int tmp_sum = 0;
-				for (int j=0; j<depth; j++)
-				{
-					tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
-				}
-				result_out[i][k] = static_cast<uint32_t>(tmp_sum * M) - this->out_params.zero_point;
+				// int tmp_sum = 0;
+				// for (int j=0; j<depth; j++)
+				// {
+				// 	tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
+				// }
+				// result_out[i][k] = static_cast<uint32_t>(tmp_sum * M) + this->out_params.zero_point;
 
 
 				// google method 2
-				// int tmp_sum = 0;
-				// for (int j =0; j < depth; j++)
-				// {
-				// 	tmp_sum += left_w[i][j] * right_in[j][k];
-				// }
-				// int a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
-				// int a_2 = 0;	
-				// for (int tmp_index = 0; tmp_index < depth; tmp_index++) 
-				// {
-				// 	a_2 += right_in[tmp_index][k];
-				// }
-				// result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
-				// 			this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				// result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) + this->out_params.zero_point;
+				int tmp_sum = 0;
+				for (int j =0; j < depth; j++)
+				{
+					tmp_sum += left_w[i][j] * right_in[j][k];
+				}
+				int a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
+				int a_2 = 0;	
+				for (int tmp_index = 0; tmp_index < depth; tmp_index++) 
+				{
+					a_2 += right_in[tmp_index][k];
+				}
+	
+				int _tmp = depth * this->weight_params.zero_point * this->in_params.zero_point -
+							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
+				result_out[i][k] = static_cast<uint32_t>(_tmp * M) + this->out_params.zero_point;
+
 			}
 		}
 	}

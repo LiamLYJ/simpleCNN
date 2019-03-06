@@ -2,11 +2,14 @@ import numpy as np
 import os
 import sys
 
-def choose_quantization_params(min, max):
+def choose_quantization_params(min_in, max_in):
+    # always should include 0 in [min, max] because of zero padding
+    min_in = min(min_in, 0)
+    max_in = max(max_in, 0)
     qmin = 0
     qmax = 255
-    scale = (max - min) / (qmax - qmin)
-    initial_zero_point = qmin - min / scale
+    scale = (max_in - min_in) / (qmax - qmin)
+    initial_zero_point = qmin - min_in / scale
 
     # refine for zero_point
     if (initial_zero_point > qmax):
@@ -81,6 +84,7 @@ def interger_matrix_mul(uint8_lhs, uint8_rhs,
                                     lhs_q_params['zero_point'] * a_2 - rhs_q_params['zero_point'] * a_1 + tmp_sum
 
     M = float(quantized_multiplier) / (1<<int(right_shift))
+    print ('M in sumup: ', M)
     if real_multiplier is not None:
         print ('diffence of M : ', (M - real_multiplier))
     actual_uint8_result = actual_uint8_result * M  + result_q_params['zero_point']
@@ -91,12 +95,73 @@ def main():
 
     # q with 8bit, multiplier use 32 bit
 
-    rows = 2
-    depth = 4
-    cols = 3
+    # rows = 2
+    # depth = 4
+    # cols = 3
 
-    float_lhs = np.random.uniform(-1, 1, rows * depth).reshape([rows, depth])
-    float_rhs = np.random.uniform(-1, 1, depth * cols). reshape([depth, cols])
+    # float_lhs = np.random.uniform(-2, 3, rows * depth).reshape([rows, depth])
+    # float_rhs = np.random.uniform(-3, 2, depth * cols). reshape([depth, cols])
+
+    # rows = 2
+    # depth = 12
+    # cols = 4
+    # float_lhs = np.array([ 1,1,2,2,1,1,1,1,0,1,1,0,-1,0,0,1,2,1,2,1,1,2,2,0])
+    # float_lhs = np.reshape(float_lhs, [rows, depth])
+    # float_rhs = np.array([1,1,2,1,
+    #                     2,1,0,3,
+    #                     1,0,1,2,
+    #                     1,2,3,2,
+    #                     0,0,2,3,
+    #                     2,3,1,2,
+    #                     0,1,3,1,
+    #                     3,1,2,0,
+    #                     1,0,2,1,
+    #                     2,1,1,3,
+    #                     0,3,1,3,
+    #                     1,3,3,2])
+    # float_rhs = np.reshape(float_rhs, [depth, cols])
+
+
+
+    rows = 2
+    depth = 27
+    cols = 9
+    float_lhs = np.array([-1,1,1,-1,1,-1,0,1,0,1,1,0,1,0,0,0,1,-1,0,0,0,1,1,1,-1,0,-1,1,-1,0,-1,-1,1,1,1,1,-1,1,-1,0,1,1,-1,1,-1,1,0,0,0,-1,-1,0,0,0])
+    float_lhs = np.reshape(float_lhs, [rows, depth])
+    float_rhs = np.array(
+        [
+        0,0,0,0,1,0,0,1,2,
+        0,1,2,0,2,2,0,1,2,
+        0,1,0,0,1,2,0,0,0,
+        0,0,0,0,1,1,1,0,1,
+        2,0,0,0,0,0,0,0,2,
+        0,1,1,1,0,1,0,0,0,
+        0,0,0,1,0,0,1,2,0,
+        1,2,0,2,2,0,1,2,0,
+        1,0,0,1,2,0,0,0,0,
+        0,0,0,0,0,1,0,1,1,
+        0,0,0,0,1,0,0,0,2,
+        0,0,1,0,1,1,0,0,0,
+        0,0,0,2,2,2,2,0,1,
+        1,2,1,2,1,0,1,2,1,
+        2,2,2,2,0,1,0,0,0,
+        0,0,0,0,1,0,1,1,0,
+        0,0,0,1,0,0,0,2,0,
+        0,1,0,1,1,0,0,0,0,
+        0,0,0,0,1,1,0,0,0,
+        0,2,0,0,0,2,0,0,0,
+        0,1,1,0,0,0,0,0,0,
+        0,0,0,2,1,2,0,2,1,
+        0,0,2,0,0,1,1,2,0,
+        2,1,2,0,2,1,0,0,0,
+        0,0,0,1,1,0,0,0,0,
+        2,0,0,0,2,0,0,0,0,
+        1,1,0,0,0,0,0,0,0
+    ]
+    )
+    float_rhs = np.reshape(float_rhs, [depth, cols])
+
+
     reference_float_result = np.matmul(float_lhs, float_rhs)
 
     print ('left matrix:\n ', float_lhs)
