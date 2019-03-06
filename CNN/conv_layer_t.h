@@ -15,7 +15,8 @@ struct conv_layer_t
 	tensor_t<float> out;
 	tensor_t<uint8_t> out_fix;
 	quantization_params in_params;
-	quantization_params_16 out_params;
+	// quantization_params_16 out_params;
+	quantization_params_8 out_params;
 	quantization_params weight_params;
 	quantization_params bias_params;
 	vector<tensor_t<float>> filters;
@@ -382,7 +383,8 @@ struct conv_layer_t
 		find_min_max(this->in, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->in_params);
 		find_min_max(this->out, value_min, value_max);
-		choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params);
+		// choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params);
+		choose_quantization_params<quantization_params_8, uint8_t>(value_min, value_max, this->out_params);
 		find_min_max(this->filters, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->weight_params);
 
@@ -408,30 +410,29 @@ struct conv_layer_t
 			for (int k =0; k < cols; k++)
 			{
 				//google method1 
-				// int tmp_sum = 0;
-				// for (int j=0; j<depth; j++)
-				// {
-				// 	tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
-				// }
-				// result_out[i][k] = tmp_sum;
-				// result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) - this->out_params.zero_point;
+				int tmp_sum = 0;
+				for (int j=0; j<depth; j++)
+				{
+					tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
+				}
+				result_out[i][k] = static_cast<uint32_t>(tmp_sum * M) - this->out_params.zero_point;
 
 
 				// google method 2
-				int tmp_sum = 0;
-				for (int j =0; j < depth; j++)
-				{
-					tmp_sum += left_w[i][j] * right_in[j][k];
-				}
-				int a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
-				int a_2 = 0;	
-				for (int tmp_index = 0; tmp_index < cols; tmp_index++) 
-				{
-					a_2 += right_in[tmp_index][k];
-				}
-				result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
-							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) + this->out_params.zero_point;
+				// int tmp_sum = 0;
+				// for (int j =0; j < depth; j++)
+				// {
+				// 	tmp_sum += left_w[i][j] * right_in[j][k];
+				// }
+				// int a_1 = accumulate(left_w[i].begin(), left_w[i].end(), 0);
+				// int a_2 = 0;	
+				// for (int tmp_index = 0; tmp_index < depth; tmp_index++) 
+				// {
+				// 	a_2 += right_in[tmp_index][k];
+				// }
+				// result_out[i][k] = depth * this->weight_params.zero_point * this->in_params.zero_point -
+				// 			this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
+				// result_out[i][k] = static_cast<uint32_t>(result_out[i][k] * M) + this->out_params.zero_point;
 			}
 		}
 	}
