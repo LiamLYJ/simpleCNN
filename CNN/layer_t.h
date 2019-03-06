@@ -13,26 +13,6 @@ struct layer_t
 };
 #pragma pack(pop)
 
-
-#pragma pack(push, 1)
-struct quantization_params
-{
-	float scale;
-	uint8_t zero_point;
-	quantization_params(float _scale, uint8_t _zero_point)
-	{
-		this->scale = _scale;
-		this->zero_point = _zero_point;
-	}
-	quantization_params(void)
-	{
-		this->scale = 0.f;
-		this->zero_point = 0;
-	}
-};
-#pragma pack(pop)
-
-
 #pragma pack(push, 1)
 struct quantization_params_8
 {
@@ -51,6 +31,8 @@ struct quantization_params_8
 };
 #pragma pack(pop)
 
+
+typedef quantization_params_8 quantization_params;
 
 #pragma pack(push, 1)
 struct quantization_params_16
