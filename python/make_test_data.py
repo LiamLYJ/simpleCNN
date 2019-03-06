@@ -28,6 +28,6 @@ kernel = np.array([
 weight_save = np.transpose(kernel, [0,2,3,1]).astype(np.float32)
 input_save = np.transpose(input_features, [1,2,0] ).astype(np.float32)
 
-np.save('./test_data/test_input.npy', input_save)
-np.save('./test_data/test_weight.npy', weight_save)
-np.save('./test_data/test_bias.npy', np.array([[0],[0]]).astype(np.float32))
+np.save('../test_data/test_input.npy', input_save)
+np.save('../test_data/test_weight.npy', weight_save)
+np.save('../test_data/test_bias.npy', np.array([[0],[0]]).astype(np.float32))

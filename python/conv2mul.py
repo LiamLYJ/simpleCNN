@@ -52,8 +52,8 @@ def conv_forward_im2col(x, w, b, conv_param):
   out_width = (W + 2 * pad - filter_width) // stride + 1
   out = np.zeros((N, num_filters, out_height, out_width), dtype=x.dtype)
 
-  x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
-  # x_cols = conv2mul.im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
+  # x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
+  x_cols = conv2mul.im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
   res = w.reshape((w.shape[0], -1)).dot(x_cols) + b.reshape(-1, 1)
 
   out = res.reshape(w.shape[0], out.shape[2], out.shape[3], x.shape[0])

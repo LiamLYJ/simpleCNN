@@ -42,7 +42,7 @@ def shrink_weight_bias(conv_weight_key,model, bn_eps = 1e-6):
 
 
 model_name = 'model_608.ckpt'
-save_dir = './data'
+save_dir = '../data'
 os.makedirs(save_dir, exist_ok=True)
 fn = os.path.join(save_dir, 'model.npy')
 bn_eps = 1e-6

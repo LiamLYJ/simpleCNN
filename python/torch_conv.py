@@ -31,7 +31,7 @@ import torch.nn.functional as F
 
 
 
-save_dir = 'test_data'
+save_dir = '../test_data'
 os.makedirs(save_dir, exist_ok=True)
 
 input_data = np.array(
