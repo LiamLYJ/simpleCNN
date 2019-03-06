@@ -106,6 +106,7 @@ void find_min_max(const vector<float> &input, float *min, float *max)
 template <typename T, typename T1>
 void choose_quantization_params(float min, float max, T &result)
 {
+	// ensure 0 is the in the matirx. because padding is using zero padding
 	min = std::min(min, 0.f);
 	max = std::max(max, 0.f);
 	assert (typeid(T1) == typeid(result.zero_point));
