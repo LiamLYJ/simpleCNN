@@ -15,9 +15,10 @@ struct conv_layer_t
 	tensor_t<float> out;
 	tensor_t<uint8_t> out_fix;
 	quantization_params in_params;
-	quantization_params_16 out_params;
+	quantization_params_16 out_params_without_bias;
+	quantization_params_32 out_params_with_bias;
 	quantization_params weight_params;
-	quantization_params bias_params;
+	quantization_params_32 bias_params;
 	vector<tensor_t<float>> filters;
 	vector<float> bias;
 	uint16_t stride;
@@ -35,7 +36,8 @@ struct conv_layer_t
 			  (in_size.y - extend_filter + 2 * padding) / stride + 1,
 			  number_filters),
 			in_params(0.f, 0),
-			out_params(0.f, 0),
+			out_params_without_bias(0.f, 0),
+			out_params_with_bias(0.f, 0),
 			weight_params(0.f, 0),
 			bias_params(0.f, 0)
 	{
@@ -213,17 +215,26 @@ struct conv_layer_t
 		}
 	}
 
+	void add_bias2out()
+	{
+		for (int filter = 0; filter < filters.size(); filter++)
+		{
+			tensor_t<float> &filter_data = filters[filter];
+			for (int x = 0; x < out.size.x; x++)
+			{
+				for (int y = 0; y < out.size.y; y++)
+				{
+					out(x, y, filter) += bias[filter];
+				}
+			}
+		}
+	}
+
 	void fix_activate(tensor_t<float> &in)
 	{
-		this->in = conv_pad(in);
+		render_params(in);
 
-		char with_bias = 0;
-		// compute float activate to get output_params, do it offline
-		activate(with_bias);
-        // print_tensor(this->out);
-		render_params();
-
-
+		// use for debugging
 		// vector<uint16_t> out_fix_xxx(this->out.size.z * this->out.size.y * this->out.size.x);
 		// vector<float> out_fix_yyy;
 		// for (int z = 0; z <this->out.size.z; z++)
@@ -231,9 +242,9 @@ struct conv_layer_t
 		// 		for (int x= 0; x < this->out.size.x; x++)
 		// 			out_fix_yyy.push_back(this->out(x,y,z));
 
-		// quantize(this->out_params, out_fix_yyy, out_fix_xxx, 16);
+		// quantize(this->out_params_without_bias, out_fix_yyy, out_fix_xxx, 16);
 		// vector<float> out_fix_zzz(this->out.size.z * this->out.size.y * this->out.size.x);
-		// dequantize(this->out_params, out_fix_xxx, out_fix_zzz);
+		// dequantize(this->out_params_without_bias, out_fix_xxx, out_fix_zzz);
 
 
 		int rows = this->filters.size();
@@ -241,8 +252,10 @@ struct conv_layer_t
 		int cols = this->out.size.y * this->out.size.x;
 		vector<vector <uint8_t>> w_left_mul_matrix(rows, vector<uint8_t>(depth, 1));
 		vector<vector <uint8_t>> in_right_mul_matrix(depth, vector<uint8_t>(cols, 1));
-		render_quantize(w_left_mul_matrix, in_right_mul_matrix);
+		vector<uint32_t> bias_uint(rows, 1);
+		render_quantize(w_left_mul_matrix, in_right_mul_matrix, bias_uint);
 
+		// use for debugging
 		// for (int i = 0; i < w_left_mul_matrix.size(); i++)
 		// 	{
 		// 		vector<float> _tmpx(w_left_mul_matrix[0].size(), 1);
@@ -255,15 +268,24 @@ struct conv_layer_t
 		// 	}
 
 
-		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params.scale;
+		const float real_m = (this->in_params.scale * this->weight_params.scale) / this->out_params_without_bias.scale;
 		int32_t fake_m = 0;
-		int right_shift = 0;
+		int right_shift = 0ll;
 		quantize_multiplier(real_m, fake_m, right_shift);
+
+		const float real_m1 = this->out_params_without_bias.scale / this->out_params_with_bias.scale;
+		int32_t fake_m1 = 0;
+		fake_m1 = static_cast<int32_t>(lroundf(real_m1));
+
+		const float real_m2 = this->bias_params.scale / this->out_params_with_bias.scale;
+		int32_t fake_m2 = 0;
+		fake_m2 = static_cast<int32_t>(lroundf(real_m2));
 
 		vector<vector<uint32_t>> out_fix_vector(rows, vector<uint32_t>(cols,1));
 		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix_vector);
-		// fix_add_bias();
+		fix_add_bias(out_fix_vector, bias_uint, fake_m1, fake_m2);
 
+		// rescale_to_8bit(); TODO
 
 
 		vector<uint32_t> _out_fix;
@@ -276,7 +298,8 @@ struct conv_layer_t
 		}
 
 		vector<float> _tmp(out_fix_vector.size() * out_fix_vector[0].size(), 1);
-		dequantize(this->out_params, _out_fix, _tmp);
+		// dequantize(this->out_params_without_bias, _out_fix, _tmp);
+		dequantize(this->out_params_with_bias, _out_fix, _tmp);
 		for (auto pp : _tmp)
 			{
 				cout << pp << endl;
@@ -285,8 +308,10 @@ struct conv_layer_t
 		print_tensor(this->out);
 	}
 
+	template <typename T>
 	void render_quantize(vector<vector<uint8_t>> &w_left_mul_matrix, 
-						vector<vector<uint8_t>> &in_right_mul_matrix)
+						vector<vector<uint8_t>> &in_right_mul_matrix,
+						vector<T> &bias_uint)
 	{
 		int rows = this->filters.size();
 		int depth = this->in.size.z * this->filters[0].size.y * this->filters[0].size.x;
@@ -301,8 +326,7 @@ struct conv_layer_t
 		for (int i = 0; i < in_matrix.size(); i++)
 			quantize(this->in_params, in_matrix[i], in_right_mul_matrix[i]);
 		
-		// TODO quantize bias
-
+		quantize(this->bias_params, this->bias, bias_uint);
 	}
 
 	void prepare_conv2mul(vector<vector<float>> &weight, vector<vector<float>> &in)
@@ -376,19 +400,34 @@ struct conv_layer_t
 		// print_tensor(this->out);
 	}
 
-	void render_params()
+	void render_params(tensor_t<float> &in)
 	{
+		this->in = conv_pad(in);
+
 		float value_min, value_max;
 		find_min_max(this->in, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->in_params);
+
+		char with_bias = 0;
+		// compute float activate to get output_params, do it offline
+		activate(with_bias);
+		// print_tensor(this->out);
 		find_min_max(this->out, value_min, value_max);
-		choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params);
+		choose_quantization_params<quantization_params_16, uint16_t>(value_min, value_max, this->out_params_without_bias);
+		add_bias2out();
+		// print_tensor(this->out);
+		find_min_max(this->out, value_min, value_max);
+		choose_quantization_params<quantization_params_32, uint32_t>(value_min, value_max, this->out_params_with_bias);
+
 		find_min_max(this->filters, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->weight_params);
 
 		// bias.zero_point bias.scale is compute as fixed one as in google's paper
 		this->bias_params.zero_point = 0;
         this->bias_params.scale = this->in_params.scale * this->weight_params.scale;
+
+		// find_min_max(this->bias, value_min, value_max);
+		// choose_quantization_params<quantization_params_32, uint32_t>(value_min, value_max, this->bias_params);
 	}
 
 	void fix_multi_convolution(const int32_t &fake_m, const int &right_shift,  
@@ -413,7 +452,7 @@ struct conv_layer_t
 				// {
 				// 	tmp_sum += (left_w[i][j] - this->weight_params.zero_point) * (right_in[j][k] - this->in_params.zero_point);
 				// }
-				// result_out[i][k] = static_cast<uint32_t>(tmp_sum * M) + this->out_params.zero_point;
+				// result_out[i][k] = static_cast<uint32_t>(tmp_sum * M) + this->out_params_without_bias.zero_point;
 
 
 				// google method 2
@@ -431,13 +470,31 @@ struct conv_layer_t
 	
 				int _tmp = depth * this->weight_params.zero_point * this->in_params.zero_point -
 							this->weight_params.zero_point * a_2 - this->in_params.zero_point * a_1 + tmp_sum;
-				result_out[i][k] = static_cast<uint32_t>(_tmp * M) + this->out_params.zero_point;
+				result_out[i][k] = static_cast<uint32_t>(_tmp * M) + this->out_params_without_bias.zero_point;
 
 			}
 		}
 	}
 
-	void fix_add_bias()
+	template <typename T>
+	void fix_add_bias(vector<vector<uint32_t>> &result_out, vector<T> bias_uint, 
+						const int32_t &fake_m1, const int32_t &fake_m2) 
+	{
+		const float M1 = static_cast<float> (fake_m1);
+		const float M2 = static_cast<float> (fake_m2);
+
+		int rows = result_out.size();
+		int cols = result_out[0].size();
+		for (int i =0; i <rows; i++)
+			for (int j =0; j <cols; j++)
+			{
+				result_out[i][j] = M1 * (static_cast<long>(result_out[i][j]) - this->out_params_without_bias.zero_point) 
+						+ M2 * (static_cast<long>(bias_uint[i]) - this->bias_params.zero_point)
+						+ this->out_params_with_bias.zero_point;
+			}
+	}
+
+	void rescale_to_8bit()
 	{
 
 	}

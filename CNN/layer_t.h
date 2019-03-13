@@ -53,6 +53,24 @@ struct quantization_params_16
 #pragma pack(pop)
 
 
+#pragma pack(push, 1)
+struct quantization_params_32
+{
+	float scale;
+	uint32_t zero_point;
+	quantization_params_32(float _scale, uint32_t _zero_point)
+	{
+		this->scale = _scale;
+		this->zero_point = _zero_point;
+	}
+	quantization_params_32(void)
+	{
+		this->scale = 0.f;
+		this->zero_point = 0;
+	}
+};
+#pragma pack(pop)
+
 
 void find_min_max(tensor_t<float> &input, float &min, float &max)
 {
@@ -92,14 +110,14 @@ void find_min_max(vector<tensor_t<float>> &input, float &min, float &max)
 	}
 }
 
-void find_min_max(const vector<float> &input, float *min, float *max)
+void find_min_max(const vector<float> &input, float &min, float &max)
 {
-	*min = *max = input[0];
+	min = max = input[0];
 	for (auto it = input.begin(); it != input.end(); it++)
 	{
 		const float val = *it;
-		*min = std::min(*min, val);
-		*max = std::max(*max, val);
+		min = std::min(min, val);
+		max = std::max(max, val);
 	}
 }
 
@@ -180,7 +198,7 @@ void dequantize(const T1 &qparams,
 	for (size_t i = 0; i < src.size(); i++)
 	{
 		const T quantized_val = src[i];
-		dst[i] = qparams.scale * (static_cast<int>(quantized_val) - qparams.zero_point);
+		dst[i] = qparams.scale * (static_cast<long>(quantized_val) - qparams.zero_point);
 	}
 }
 
