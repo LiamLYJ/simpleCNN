@@ -15,6 +15,7 @@ struct conv_layer_t
 	tensor_t<float> out;
 	tensor_t<uint8_t> out_fix;
 	quantization_params in_params;
+	quantization_params out_params;
 	quantization_params_16 out_params_without_bias;
 	quantization_params_32 out_params_with_bias;
 	quantization_params weight_params;
@@ -36,6 +37,7 @@ struct conv_layer_t
 			  (in_size.y - extend_filter + 2 * padding) / stride + 1,
 			  number_filters),
 			in_params(0.f, 0),
+			out_params(0.f, 0),
 			out_params_without_bias(0.f, 0),
 			out_params_with_bias(0.f, 0),
 			weight_params(0.f, 0),
@@ -285,27 +287,41 @@ struct conv_layer_t
 		fix_multi_convolution(fake_m, right_shift, w_left_mul_matrix, in_right_mul_matrix, out_fix_vector);
 		fix_add_bias(out_fix_vector, bias_uint, fake_m1, fake_m2);
 
-		// rescale_to_8bit(); TODO
+		// for debugging
+		// vector<uint32_t> _out_fix;
+		// for (int i =0; i<out_fix_vector.size(); i++)
+		// {
+		// 	for (int j =0; j <out_fix_vector[0].size(); j++)
+		// 	{
+		// 		_out_fix.push_back(out_fix_vector[i][j]);
+		// 	}
+		// }
 
+		// vector<float> _tmp(out_fix_vector.size() * out_fix_vector[0].size(), 1);
+		// // dequantize(this->out_params_without_bias, _out_fix, _tmp);
+		// dequantize(this->out_params_with_bias, _out_fix, _tmp);
+		// for (auto pp : _tmp)
+		// 	{
+		// 		cout << pp << endl;
+		// 	}
 
-		vector<uint32_t> _out_fix;
-		for (int i =0; i<out_fix_vector.size(); i++)
-		{
-			for (int j =0; j <out_fix_vector[0].size(); j++)
-			{
-				_out_fix.push_back(out_fix_vector[i][j]);
-			}
-		}
+		rescale_to_8bit(out_fix_vector); 
 
-		vector<float> _tmp(out_fix_vector.size() * out_fix_vector[0].size(), 1);
-		// dequantize(this->out_params_without_bias, _out_fix, _tmp);
-		dequantize(this->out_params_with_bias, _out_fix, _tmp);
-		for (auto pp : _tmp)
-			{
-				cout << pp << endl;
-			}
+		// for debugging
+		// print_tensor(this->out_fix);
+		// vector<uint8_t> _out_fix;
+		// for (int k = 0; k < this->out_fix.size.z; k++)
+		// 	for (int j = 0; j < this->out_fix.size.y; j++)
+		// 		for (int i = 0; i < this->out_fix.size.x; i++)
+		// 			_out_fix.push_back(this->out_fix(i,j,k));
 
-		print_tensor(this->out);
+		// vector<float> _tmp(out_fix_vector.size() * out_fix_vector[0].size(), 1);
+		// dequantize(this->out_params, _out_fix, _tmp);
+		// for (auto pp : _tmp)
+		// 	{
+		// 		cout << pp << endl;
+		// 	}
+		// print_tensor(this->out);
 	}
 
 	template <typename T>
@@ -417,13 +433,16 @@ struct conv_layer_t
 		add_bias2out();
 		// print_tensor(this->out);
 		find_min_max(this->out, value_min, value_max);
+		// choose prams for compute 32bit
 		choose_quantization_params<quantization_params_32, uint32_t>(value_min, value_max, this->out_params_with_bias);
+		// choose params for output (8bit)
+		choose_quantization_params<quantization_params_8, uint8_t>(value_min, value_max, this->out_params);
 
 		find_min_max(this->filters, value_min, value_max);
 		choose_quantization_params<quantization_params, uint8_t>(value_min, value_max, this->weight_params);
 
 		// bias.zero_point bias.scale is compute as fixed one as in google's paper
-		this->bias_params.zero_point = 0;
+		this->bias_params.zero_point = 1<<31;
         this->bias_params.scale = this->in_params.scale * this->weight_params.scale;
 
 		// find_min_max(this->bias, value_min, value_max);
@@ -494,9 +513,22 @@ struct conv_layer_t
 			}
 	}
 
-	void rescale_to_8bit()
+	void rescale_to_8bit(vector<vector<uint32_t>> output_32bit)
 	{
-
+		assert (output_32bit.size() == this->out_fix.size.z);
+		for (int k = 0; k < this->out_fix.size.z; k++)
+		{
+			auto point = output_32bit[k].begin();
+			for (int j =0; j < this->out_fix.size.y; j++)
+			{
+				for (int i = 0; i < this->out_fix.size.x; i++)
+				{
+					auto tmp = static_cast<float>(*point) / (1<<24);
+					this->out_fix(i,j,k) = static_cast<uint8_t>(lroundf(tmp));
+					point ++;
+				}
+			}
+		}
 	}
 
 };

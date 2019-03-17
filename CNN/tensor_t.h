@@ -120,7 +120,8 @@ struct tensor_t
 	}
 };
 
-static void print_tensor( tensor_t<float>& data )
+template <typename T>
+static void print_tensor( tensor_t<T>& data )
 {
 	int mx = data.size.x;
 	int my = data.size.y;
