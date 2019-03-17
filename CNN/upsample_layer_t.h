@@ -17,14 +17,6 @@ struct upsample_layer_t
 		this->stride = stride;
 	}
 
-	point_t map_to_input( point_t out, int z )
-	{
-		out.x *= stride;
-		out.y *= stride;
-		out.z = z;
-		return out;
-	}
-
 	void activate( tensor_t<float>& in )
 	{
 		this->in = in;
