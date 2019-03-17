@@ -6,5 +6,6 @@ enum class layer_type
 	fc,
 	relu,
 	pool,
-	dropout_layer
+	dropout_layer,
+	upsample
 };
