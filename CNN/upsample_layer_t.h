@@ -2,19 +2,27 @@
 #include "layer_t.h"
 
 #pragma pack(push, 1)
+enum class upsample_type
+{
+	copy,
+	liner
+};
+
 struct upsample_layer_t
 {
 	layer_type type = layer_type::upsample;
 	tensor_t<float> in;
 	tensor_t<float> out;
 	uint16_t stride;
+	upsample_type sample_type;
 
-	upsample_layer_t( uint16_t stride, tdsize in_size )
+	upsample_layer_t( uint16_t stride, tdsize in_size, upsample_type sample_type = upsample_type::copy)
 		:
 		in( in_size.x, in_size.y, in_size.z ),
 		out( in_size.x * stride, in_size.y * stride, in_size.z )
 	{
 		this->stride = stride;
+		this->sample_type = sample_type;
 	}
 
 	void activate( tensor_t<float>& in )
