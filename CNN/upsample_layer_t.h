@@ -5,7 +5,7 @@
 enum class upsample_type
 {
 	copy,
-	liner
+	linear
 };
 
 struct upsample_layer_t
