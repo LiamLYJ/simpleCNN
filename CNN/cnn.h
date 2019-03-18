@@ -5,7 +5,8 @@
 #include "relu_layer_t.h"
 #include "conv_layer_t.h"
 #include "dropout_layer_t.h"
-
+#include "concat_layer_t.h"
+#include "upsample_layer_t.h"
 
 static void activate( layer_t* layer, tensor_t<float>& in )
 {
@@ -26,7 +27,21 @@ static void activate( layer_t* layer, tensor_t<float>& in )
 		case layer_type::dropout_layer:
 			((dropout_layer_t*)layer)->activate( in );
 			return;
+		case layer_type::upsample:
+		    ((upsample_layer_t*)layer)->activate( in );
 		default:
 			assert( false );
 	}
+}
+static void activate( layer_t* layer, tensor_t<float>& in_1, tensor_t<float>& in_2)
+{
+	switch (layer->type)
+	{
+		case layer_type::concat:
+		    ((concat_layer_t*)layer)->activate( in_1, in_2 );
+		default:
+		    assert( false );
+
+	}
+
 }

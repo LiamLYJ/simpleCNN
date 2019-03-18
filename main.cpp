@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <map>
 #include <algorithm>
 #include "byteswap.h"
 #include "CNN/cnn.h"
@@ -47,12 +48,19 @@ void load_npy(string fn, vector <T> & data)
 
 void forward( vector<layer_t*>& layers, tensor_t<float>& data )
 {
+    map<int,int> skip_record;
+    skip_record[1] = 1;
+    skip_record[2] = 1;
+    skip_record[3] = 1;
+    skip_record[8] = 4;
     for ( int i = 0; i < layers.size(); i++ )
     {
         if ( i == 0 )
             activate( layers[i], data );
+        else if (layers[i]->type == layer_type::concat)
+            activate( layers[i], layers[i - 1]->out, layers[i - skip_record[i]]->out);
         else
-            activate( layers[i], layers[i - 1]->out );
+            activate( layers[i], layers[i - skip_record[i]]->out );
     }
 }
 
