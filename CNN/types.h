@@ -7,5 +7,6 @@ enum class layer_type
 	relu,
 	pool,
 	dropout_layer,
-	concat
+	concat,
+	upsample
 };
